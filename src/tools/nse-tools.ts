@@ -195,6 +195,16 @@ export const nseTools: Tool[] = [
     required: ['symbol', 'from_date', 'to_date'],
   },
 },
+  // ======================================================
+// F&O BHAVCOPY PARSED DATA
+// ======================================================
+
+case 'nse_fno_bhavcopy_data':
+  result = await getFnoBhavcopyData(
+    nse,
+    args
+  );
+  break;
   // ============================================================
   // VIX
   // ============================================================
