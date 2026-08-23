@@ -628,6 +628,159 @@ function normalizeFnoRow(
       'NSE_FNO_BHAVCOPY',
   };
 }
+/* ============================================================
+   F&O BHAVCOPY PARSED DATA
+   ============================================================ */
+
+async function getFnoBhavcopyData(
+  nse: NSEClient,
+  args: Record<string, any>
+): Promise<Record<string, any>[]> {
+  const date = parseDate(args.date);
+
+  const filePath = await nse.fnoBhavcopy(date);
+
+  const rows = await readDownloadedCsv(String(filePath));
+
+  if (!rows.length) {
+    return [];
+  }
+
+  const wantedSymbol = args.symbol
+    ? String(args.symbol).trim().toUpperCase()
+    : undefined;
+
+  const wantedInstrument = args.instrument_type
+    ? String(args.instrument_type).trim().toUpperCase()
+    : undefined;
+
+  const wantedOptionType = args.option_type
+    ? String(args.option_type).trim().toUpperCase()
+    : undefined;
+
+  const wantedExpiry = args.expiry_date
+    ? dateKey(parseDate(args.expiry_date))
+    : undefined;
+
+  const wantedStrike =
+    args.strike_price !== undefined &&
+    args.strike_price !== null
+      ? Number(args.strike_price)
+      : undefined;
+
+  const stocksOnly =
+    args.stocks_only === undefined
+      ? true
+      : Boolean(args.stocks_only);
+
+  const result: Record<string, any>[] = [];
+
+  for (const row of rows) {
+    const symbol = String(
+      row.SYMBOL ??
+      row.symbol ??
+      row.TckrSymb ??
+      ''
+    ).trim().toUpperCase();
+
+    if (!symbol) {
+      continue;
+    }
+
+    const instrument = String(
+      row.INSTRUMENT ??
+      row.Instrument ??
+      row.FinInstrmTp ??
+      ''
+    ).trim().toUpperCase();
+
+    // Default = F&O STOCKS ONLY
+    if (stocksOnly) {
+      if (
+        instrument !== 'FUTSTK' &&
+        instrument !== 'OPTSTK'
+      ) {
+        continue;
+      }
+    }
+
+    if (
+      wantedSymbol &&
+      symbol !== wantedSymbol
+    ) {
+      continue;
+    }
+
+    if (
+      wantedInstrument &&
+      instrument !== wantedInstrument
+    ) {
+      continue;
+    }
+
+    const optionType = String(
+      row.OPTION_TYP ??
+      row.OPTION_TYPE ??
+      row.OptnTp ??
+      ''
+    ).trim().toUpperCase();
+
+    if (
+      wantedOptionType &&
+      optionType !== wantedOptionType
+    ) {
+      continue;
+    }
+
+    if (
+      wantedStrike !== undefined &&
+      wantedStrike !== null
+    ) {
+      const strike = numberOrNull(
+        row.STRIKE_PR ??
+        row.STRIKE_PRICE ??
+        row.StrkPric
+      );
+
+      if (
+        strike === null ||
+        strike !== wantedStrike
+      ) {
+        continue;
+      }
+    }
+
+    if (wantedExpiry) {
+      const rawExpiry =
+        row.EXPIRY_DT ??
+        row.EXPIRY_DATE ??
+        row.XpryDt;
+
+      if (rawExpiry) {
+        const parsedExpiry = new Date(
+          String(rawExpiry).trim()
+        );
+
+        if (
+          !Number.isNaN(parsedExpiry.getTime()) &&
+          parsedExpiry.toISOString().slice(0, 10) !==
+            wantedExpiry
+        ) {
+          continue;
+        }
+      }
+    }
+
+    result.push(
+      normalizeFnoRow(
+        row,
+        dateKey(date)
+      )
+    );
+  }
+
+  return result;
+}
 
 /* ============================================================
    EQUITY HISTORICAL FALLBACK
