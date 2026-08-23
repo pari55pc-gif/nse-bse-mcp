@@ -155,73 +155,46 @@ export const nseTools: Tool[] = [
   // ============================================================
 
   {
-    name: 'nse_fno_historical',
-
-    description:
-      'Fetch historical NSE Futures & Options data. Returns OHLC, expiry, strike, option type, volume/contracts, turnover, open interest and change in open interest. Uses the historical API first and automatically falls back to daily NSE F&O bhavcopy. Designed for BTST hedging and F&O backtesting. Use max_items and fields to limit large responses.',
-
-    inputSchema: {
-      type: 'object',
-
-      properties: addFilterProperties({
-        symbol: {
-          type: 'string',
-          description:
-            'NSE F&O symbol, e.g. SBIN, RELIANCE, COFORGE.',
-        },
-
-        from_date: {
-          type: 'string',
-          description:
-            'Start date in YYYY-MM-DD format.',
-        },
-
-        to_date: {
-          type: 'string',
-          description:
-            'End date in YYYY-MM-DD format.',
-        },
-
-        instrument_type: {
-          type: 'string',
-          description:
-            'F&O instrument type.',
-          enum: [
-            'FUTIDX',
-            'FUTSTK',
-            'OPTIDX',
-            'OPTSTK',
-          ],
-        },
-
-        expiry_date: {
-          type: 'string',
-          description:
-            'Optional expiry date in YYYY-MM-DD format.',
-        },
-
-        option_type: {
-          type: 'string',
-          description:
-            'Option type. Use CE or PE for options. Leave empty for futures.',
-          enum: ['CE', 'PE'],
-        },
-
-        strike_price: {
-          type: 'number',
-          description:
-            'Optional option strike price. Useful for selecting a specific CE/PE contract.',
-        },
-      }),
-
-      required: [
-        'symbol',
-        'from_date',
-        'to_date',
-      ],
-    },
+  name: 'nse_fno_historical',
+  description:
+    'Fetch historical F&O data for backtesting. Supports futures/options filtering by instrument type, expiry, option type and strike price. Use max_items and fields to limit large responses.',
+  inputSchema: {
+    type: 'object',
+    properties: addFilterProperties({
+      symbol: {
+        type: 'string',
+        description: 'Symbol name, e.g. RELIANCE, SBIN, TCS',
+      },
+      from_date: {
+        type: 'string',
+        description: 'Start date (YYYY-MM-DD)',
+      },
+      to_date: {
+        type: 'string',
+        description: 'End date (YYYY-MM-DD)',
+      },
+      instrument_type: {
+        type: 'string',
+        description:
+          'Instrument type: FUTIDX, FUTSTK, OPTIDX, OPTSTK',
+      },
+      expiry_date: {
+        type: 'string',
+        description: 'Expiry date (YYYY-MM-DD)',
+      },
+      option_type: {
+        type: 'string',
+        description: 'Option type filter: CE or PE',
+        enum: ['CE', 'PE'],
+      },
+      strike_price: {
+        type: 'number',
+        description: 'Exact option strike price filter',
+      },
+    }),
+    required: ['symbol', 'from_date', 'to_date'],
   },
-
+},
   // ============================================================
   // VIX
   // ============================================================
