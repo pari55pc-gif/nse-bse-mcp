@@ -2,610 +2,872 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { addFilterProperties } from './common-properties.js';
 
 export const nseTools: Tool[] = [
-  // Market Data Tools
+  // ============================================================
+  // MARKET DATA
+  // ============================================================
+
   {
     name: 'nse_get_market_status',
-    description: 'Get current NSE market status including trading hours and market state',
+    description:
+      'Get current NSE market status including trading hours and market state.',
     inputSchema: {
       type: 'object',
       properties: {},
     },
   },
+
   {
     name: 'nse_equity_quote',
-    description: 'Get real-time equity quote for a symbol on NSE',
+    description:
+      'Get real-time equity quote for a symbol on NSE.',
     inputSchema: {
       type: 'object',
       properties: {
         symbol: {
           type: 'string',
-          description: 'Stock symbol (e.g., RELIANCE, TCS, INFY)',
+          description:
+            'Stock symbol (e.g., RELIANCE, TCS, INFY).',
         },
       },
       required: ['symbol'],
     },
   },
+
   {
     name: 'nse_get_quote',
-    description: 'Get quote for any symbol with segment specification',
+    description:
+      'Get quote for any symbol with segment specification.',
     inputSchema: {
       type: 'object',
       properties: {
         symbol: {
           type: 'string',
-          description: 'Symbol name',
+          description: 'Symbol name.',
         },
         segment: {
           type: 'string',
-          description: 'Market segment (equities, sme, mf, debt)',
+          description:
+            'Market segment (equities, sme, mf, debt).',
           enum: ['equities', 'sme', 'mf', 'debt'],
         },
       },
       required: ['symbol'],
     },
   },
+
   {
     name: 'nse_lookup_symbol',
-    description: 'Search for symbols on NSE by name or partial match',
+    description:
+      'Search for symbols on NSE by name or partial match.',
     inputSchema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Search query (company name or symbol)',
+          description:
+            'Search query (company name or symbol).',
         },
       },
       required: ['query'],
     },
   },
+
   {
     name: 'nse_get_gainers',
-    description: 'Get top gainers from market data',
+    description:
+      'Get top gainers from market data.',
     inputSchema: {
       type: 'object',
       properties: {
         count: {
           type: 'number',
-          description: 'Number of top gainers to return (default: 10)',
-        },
-      },
-    },
-  },
-  {
-    name: 'nse_get_losers',
-    description: 'Get top losers from market data',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        count: {
-          type: 'number',
-          description: 'Number of top losers to return (default: 10)',
+          description:
+            'Number of top gainers to return (default: 10).',
         },
       },
     },
   },
 
-  // Historical Data Tools
   {
-    name: 'nse_equity_historical',
-    description: 'Fetch historical equity data for a symbol. Use max_items and fields to limit large responses.',
+    name: 'nse_get_losers',
+    description:
+      'Get top losers from market data.',
     inputSchema: {
       type: 'object',
+      properties: {
+        count: {
+          type: 'number',
+          description:
+            'Number of top losers to return (default: 10).',
+        },
+      },
+    },
+  },
+
+  // ============================================================
+  // HISTORICAL EQUITY
+  // ============================================================
+
+  {
+    name: 'nse_equity_historical',
+    description:
+      'Fetch historical daily NSE equity OHLCV data. Uses the NSE historical API first and automatically falls back to daily NSE equity bhavcopy when required. Useful for swing, positional and BTST backtesting. Use max_items and fields to limit large responses.',
+    inputSchema: {
+      type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
-          description: 'Stock symbol',
+          description:
+            'NSE stock symbol, e.g. SBIN, RELIANCE, TCS, COFORGE.',
         },
+
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date in YYYY-MM-DD format.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date in YYYY-MM-DD format.',
         },
+
         series: {
           type: 'string',
-          description: 'Series (default: EQ)',
+          description:
+            'NSE equity series. Default is EQ.',
+          default: 'EQ',
         },
       }),
-      required: ['symbol', 'from_date', 'to_date'],
+
+      required: [
+        'symbol',
+        'from_date',
+        'to_date',
+      ],
     },
   },
+
+  // ============================================================
+  // HISTORICAL F&O
+  // ============================================================
 
   {
     name: 'nse_fno_historical',
-    description: 'Fetch historical F&O data. Use max_items and fields to limit large responses.',
+
+    description:
+      'Fetch historical NSE Futures & Options data. Returns OHLC, expiry, strike, option type, volume/contracts, turnover, open interest and change in open interest. Uses the historical API first and automatically falls back to daily NSE F&O bhavcopy. Designed for BTST hedging and F&O backtesting. Use max_items and fields to limit large responses.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
-          description: 'Symbol name',
+          description:
+            'NSE F&O symbol, e.g. SBIN, RELIANCE, COFORGE.',
         },
+
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date in YYYY-MM-DD format.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date in YYYY-MM-DD format.',
         },
+
         instrument_type: {
           type: 'string',
-          description: 'Instrument type (FUTIDX, FUTSTK, OPTIDX, OPTSTK)',
+          description:
+            'F&O instrument type.',
+          enum: [
+            'FUTIDX',
+            'FUTSTK',
+            'OPTIDX',
+            'OPTSTK',
+          ],
         },
+
         expiry_date: {
           type: 'string',
-          description: 'Expiry date (YYYY-MM-DD)',
+          description:
+            'Optional expiry date in YYYY-MM-DD format.',
+        },
+
+        option_type: {
+          type: 'string',
+          description:
+            'Option type. Use CE or PE for options. Leave empty for futures.',
+          enum: ['CE', 'PE'],
+        },
+
+        strike_price: {
+          type: 'number',
+          description:
+            'Optional option strike price. Useful for selecting a specific CE/PE contract.',
         },
       }),
-      required: ['symbol', 'from_date', 'to_date'],
+
+      required: [
+        'symbol',
+        'from_date',
+        'to_date',
+      ],
     },
   },
+
+  // ============================================================
+  // VIX
+  // ============================================================
+
   {
     name: 'nse_vix_historical',
-    description: 'Fetch historical VIX (volatility index) data. Use max_items and fields to limit large responses.',
+    description:
+      'Fetch historical NSE India VIX data. Use max_items and fields to limit large responses.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date in YYYY-MM-DD format.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date in YYYY-MM-DD format.',
         },
       }),
     },
   },
 
-  // Options & Derivatives Tools (V3 API - Recommended)
+  // ============================================================
+  // OPTIONS & DERIVATIVES
+  // ============================================================
+
   {
     name: 'nse_get_expiry_dates',
+
     description:
-      'Get all available option expiry dates for a symbol. CALL THIS FIRST before using other option chain tools to get valid expiry dates. Returns dates sorted chronologically in DD-Mon-YYYY format (e.g., "12-Dec-2024", "19-Dec-2024"). Works for index options (NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY) and stock options (RELIANCE, TCS, etc.).',
+      'Get all available option expiry dates for a symbol. Call this first before using option-chain tools.',
+
     inputSchema: {
       type: 'object',
+
       properties: {
         symbol: {
           type: 'string',
           description:
-            'Trading symbol. For indices use: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY. For stocks use NSE symbol like RELIANCE, TCS, INFY, HDFCBANK.',
+            'Trading symbol. Examples: NIFTY, BANKNIFTY, RELIANCE, TCS, SBIN.',
         },
       },
+
       required: ['symbol'],
     },
   },
+
   {
     name: 'nse_option_chain',
+
     description:
-      'Get complete option chain data for a symbol with all strikes and expiries. Returns full CE (Call) and PE (Put) data including lastPrice, openInterest, impliedVolatility, change, volume for each strike. Best for comprehensive analysis. For large symbols like NIFTY, use nse_filtered_option_chain instead to reduce data size. Expiry defaults to nearest if not specified.',
+      'Get complete option chain data including CE and PE price, OI, change in OI, IV and volume.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
           description:
-            'Trading symbol. Index options: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY. Stock options: RELIANCE, TCS, INFY, etc.',
+            'Trading symbol.',
         },
+
         expiry: {
           type: 'string',
           description:
-            'Expiry date in DD-Mon-YYYY format (e.g., "12-Dec-2024"). Get valid dates from nse_get_expiry_dates. If omitted, uses nearest expiry.',
+            'Expiry date in DD-Mon-YYYY format.',
         },
+
         type: {
           type: 'string',
           description:
-            'Option type - "Indices" for index options (NIFTY, BANKNIFTY), "Equity" for stock options. Auto-detected based on symbol if not provided.',
+            'Option type category.',
           enum: ['Indices', 'Equity'],
         },
       }),
+
       required: ['symbol'],
     },
   },
+
   {
     name: 'nse_filtered_option_chain',
+
     description:
-      'Get a compact option chain with only essential data around ATM (At-The-Money) strikes. RECOMMENDED for LLM usage - reduces response size by ~90% while keeping key metrics: lastPrice, openInterest, changeinOpenInterest, impliedVolatility, totalTradedVolume for both CE and PE. Returns: symbol, underlyingValue, atmStrike, timestamp, and filtered strike data.',
+      'Get compact option-chain data around ATM strikes. Includes CE/PE price, OI, change in OI, IV and volume.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
           description:
-            'Trading symbol. Index options: NIFTY, BANKNIFTY, FINNIFTY. Stock options: RELIANCE, TCS, INFY, etc.',
+            'Trading symbol.',
         },
+
         expiry: {
           type: 'string',
           description:
-            'Expiry date in DD-Mon-YYYY format (e.g., "12-Dec-2024"). Get valid dates from nse_get_expiry_dates. If omitted, uses nearest expiry.',
+            'Expiry date in DD-Mon-YYYY format.',
         },
+
         strike_range: {
           type: 'number',
           description:
-            'Number of strikes to include above and below ATM strike. Default: 10 (returns 21 strikes total). Use 5 for minimal data, 15-20 for wider analysis.',
+            'Number of strikes above and below ATM. Default 10.',
         },
       }),
+
       required: ['symbol'],
     },
   },
+
   {
     name: 'nse_compile_option_chain',
+
     description:
-      'Get pre-calculated option chain analytics for a specific expiry. Returns comprehensive metrics: ATM strike, max pain level, Put-Call Ratio (PCR), max Call OI strike, max Put OI strike, total Call/Put OI, and full chain with per-strike PCR. Best for quick market sentiment analysis without manual calculations.',
+      'Get calculated option-chain analytics including ATM, max pain, PCR, CE/PE OI and per-strike analytics.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
           description:
-            'Trading symbol. Index options: NIFTY, BANKNIFTY, FINNIFTY. Stock options: RELIANCE, TCS, INFY, etc.',
+            'Trading symbol.',
         },
+
         expiry: {
           type: 'string',
           description:
-            'Expiry date in DD-Mon-YYYY format (e.g., "12-Dec-2024"). REQUIRED - get valid dates from nse_get_expiry_dates first.',
+            'Expiry date in DD-Mon-YYYY format.',
         },
       }),
-      required: ['symbol', 'expiry'],
+
+      required: [
+        'symbol',
+        'expiry',
+      ],
     },
   },
+
   {
     name: 'nse_calculate_max_pain',
+
     description:
-      'Calculate the max pain strike price for options. Max pain is the strike price where option buyers would lose the most money (and option writers profit most) at expiry. Useful for predicting potential expiry settlement levels. Returns a single strike price number.',
+      'Calculate max-pain strike for an option expiry.',
+
     inputSchema: {
       type: 'object',
+
       properties: {
         symbol: {
           type: 'string',
           description:
-            'Trading symbol. Index options: NIFTY, BANKNIFTY, FINNIFTY. Stock options: RELIANCE, TCS, INFY, etc.',
+            'Trading symbol.',
         },
+
         expiry: {
           type: 'string',
           description:
-            'Expiry date in DD-Mon-YYYY format (e.g., "12-Dec-2024"). REQUIRED - get valid dates from nse_get_expiry_dates first.',
+            'Expiry date in DD-Mon-YYYY format.',
         },
       },
-      required: ['symbol', 'expiry'],
+
+      required: [
+        'symbol',
+        'expiry',
+      ],
     },
   },
+
   {
     name: 'nse_fno_lots',
-    description: 'Get F&O lot sizes for all symbols. Use max_items and fields to limit large responses.',
+
+    description:
+      'Get NSE F&O lot sizes for all available symbols. Use max_items and fields to limit the response.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({}),
     },
   },
+
   {
     name: 'nse_futures_expiry',
-    description: 'Get futures expiry dates',
+
+    description:
+      'Get futures expiry dates.',
+
     inputSchema: {
       type: 'object',
+
       properties: {
         index: {
           type: 'string',
-          description: 'Index name (nifty, banknifty, finnifty)',
-          enum: ['nifty', 'banknifty', 'finnifty'],
+          description:
+            'Index name.',
+          enum: [
+            'nifty',
+            'banknifty',
+            'finnifty',
+          ],
         },
       },
     },
   },
 
-  // Corporate Information Tools
+  // ============================================================
+  // CORPORATE INFORMATION
+  // ============================================================
+
   {
     name: 'nse_corporate_actions',
-    description: 'Get corporate actions (dividends, splits, bonuses). Use max_items and fields to limit large responses.',
+    description:
+      'Get NSE corporate actions including dividends, splits and bonuses.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
-          description: 'Stock symbol (optional)',
+          description:
+            'Stock symbol.',
         },
+
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date YYYY-MM-DD.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date YYYY-MM-DD.',
         },
+
         segment: {
           type: 'string',
-          description: 'Market segment',
+          description:
+            'Market segment.',
         },
       }),
     },
   },
+
   {
     name: 'nse_corporate_announcements',
-    description: 'Get corporate announcements. Use max_items and fields to limit large responses.',
+    description:
+      'Get NSE corporate announcements.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
-          description: 'Stock symbol (optional)',
+          description:
+            'Stock symbol.',
         },
+
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date YYYY-MM-DD.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date YYYY-MM-DD.',
         },
       }),
     },
   },
+
   {
     name: 'nse_board_meetings',
-    description: 'Get board meeting information. Use max_items and fields to limit large responses.',
+    description:
+      'Get NSE board meeting information.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
-          description: 'Stock symbol (optional)',
+          description:
+            'Stock symbol.',
         },
+
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date YYYY-MM-DD.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date YYYY-MM-DD.',
         },
       }),
     },
   },
+
   {
     name: 'nse_annual_reports',
-    description: 'Get annual reports for a company. Use max_items and fields to limit large responses.',
+    description:
+      'Get annual reports for a company.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         symbol: {
           type: 'string',
-          description: 'Stock symbol',
+          description:
+            'Stock symbol.',
         },
+
         segment: {
           type: 'string',
-          description: 'Market segment (default: equities)',
+          description:
+            'Market segment. Default equities.',
         },
       }),
+
       required: ['symbol'],
     },
   },
+
   {
     name: 'nse_circulars',
-    description: 'Get NSE circulars. Use max_items and fields to limit large responses.',
+    description:
+      'Get NSE circulars.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date YYYY-MM-DD.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date YYYY-MM-DD.',
         },
       }),
     },
   },
 
-  // IPO Tools
+  // ============================================================
+  // IPO
+  // ============================================================
+
   {
     name: 'nse_current_ipos',
-    description: 'List current/ongoing IPOs',
+    description:
+      'List current/ongoing IPOs.',
     inputSchema: {
       type: 'object',
       properties: {},
     },
   },
+
   {
     name: 'nse_upcoming_ipos',
-    description: 'List upcoming IPOs',
+    description:
+      'List upcoming IPOs.',
     inputSchema: {
       type: 'object',
       properties: {},
     },
   },
+
   {
     name: 'nse_past_ipos',
-    description: 'List past IPOs',
+    description:
+      'List past IPOs.',
     inputSchema: {
       type: 'object',
+
       properties: {
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date YYYY-MM-DD.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date YYYY-MM-DD.',
         },
       },
     },
   },
+
   {
     name: 'nse_ipo_details',
-    description: 'Get detailed IPO information',
+    description:
+      'Get detailed IPO information.',
     inputSchema: {
       type: 'object',
+
       properties: {
         symbol: {
           type: 'string',
-          description: 'IPO symbol',
+          description:
+            'IPO symbol.',
         },
       },
+
       required: ['symbol'],
     },
   },
 
-  // Market Activity Tools
+  // ============================================================
+  // MARKET ACTIVITY
+  // ============================================================
+
   {
     name: 'nse_block_deals',
-    description: 'Get block deals data. Use max_items and fields to limit large responses.',
+    description:
+      'Get NSE block-deal data.',
     inputSchema: {
       type: 'object',
       properties: addFilterProperties({}),
     },
   },
+
   {
     name: 'nse_bulk_deals',
-    description: 'Get bulk deals data. Use max_items and fields to limit large responses.',
+    description:
+      'Get NSE bulk-deal data.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         from_date: {
           type: 'string',
-          description: 'Start date (YYYY-MM-DD)',
+          description:
+            'Start date YYYY-MM-DD.',
         },
+
         to_date: {
           type: 'string',
-          description: 'End date (YYYY-MM-DD)',
+          description:
+            'End date YYYY-MM-DD.',
         },
       }),
-      required: ['from_date', 'to_date'],
+
+      required: [
+        'from_date',
+        'to_date',
+      ],
     },
   },
+
   {
     name: 'nse_holidays',
-    description: 'Get market holidays',
+    description:
+      'Get NSE market holidays.',
     inputSchema: {
       type: 'object',
+
       properties: {
         type: {
           type: 'string',
-          description: 'Holiday type (trading or clearing)',
-          enum: ['trading', 'clearing'],
+          description:
+            'Holiday type.',
+          enum: [
+            'trading',
+            'clearing',
+          ],
         },
       },
     },
   },
 
-  // Lists & Metadata Tools
+  // ============================================================
+  // LISTS & METADATA
+  // ============================================================
+
   {
     name: 'nse_list_indices',
-    description: 'List all NSE indices. Use max_items and fields to limit large responses.',
+    description:
+      'List all NSE indices.',
     inputSchema: {
       type: 'object',
       properties: addFilterProperties({}),
     },
   },
+
   {
     name: 'nse_list_stocks_by_index',
-    description: 'List all stocks in an index. Use max_items and fields to limit large responses.',
+    description:
+      'List stocks belonging to an NSE index.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         index: {
           type: 'string',
-          description: 'Index name (default: NIFTY 50)',
+          description:
+            'Index name. Default NIFTY 50.',
         },
       }),
     },
   },
+
   {
     name: 'nse_list_etf',
-    description: 'List all ETFs. Use max_items and fields to limit large responses.',
+    description:
+      'List all NSE ETFs.',
     inputSchema: {
       type: 'object',
       properties: addFilterProperties({}),
     },
   },
+
   {
     name: 'nse_list_sme',
-    description: 'List all SME stocks. Use max_items and fields to limit large responses.',
+    description:
+      'List all NSE SME stocks.',
     inputSchema: {
       type: 'object',
       properties: addFilterProperties({}),
     },
   },
+
   {
     name: 'nse_list_sgb',
-    description: 'List all Sovereign Gold Bonds. Use max_items and fields to limit large responses.',
+    description:
+      'List all NSE Sovereign Gold Bonds.',
     inputSchema: {
       type: 'object',
       properties: addFilterProperties({}),
     },
   },
+
   {
     name: 'nse_equity_meta_info',
-    description: 'Get metadata for an equity symbol',
+    description:
+      'Get metadata for an NSE equity symbol.',
     inputSchema: {
       type: 'object',
+
       properties: {
         symbol: {
           type: 'string',
-          description: 'Stock symbol',
+          description:
+            'Stock symbol.',
         },
       },
+
       required: ['symbol'],
     },
   },
 
-  // Download Tools
+  // ============================================================
+  // DOWNLOADS
+  // ============================================================
+
   {
     name: 'nse_download_equity_bhavcopy',
-    description: 'Download equity bhavcopy report. Use max_items and fields to limit large responses.',
+    description:
+      'Download the NSE daily equity bhavcopy for a specific date.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         date: {
           type: 'string',
-          description: 'Date (YYYY-MM-DD)',
+          description:
+            'Trading date YYYY-MM-DD.',
         },
       }),
+
       required: ['date'],
     },
   },
+
   {
     name: 'nse_download_delivery_bhavcopy',
-    description: 'Download delivery bhavcopy report. Use max_items and fields to limit large responses.',
+    description:
+      'Download NSE delivery bhavcopy for a specific date.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         date: {
           type: 'string',
-          description: 'Date (YYYY-MM-DD)',
+          description:
+            'Trading date YYYY-MM-DD.',
         },
       }),
+
       required: ['date'],
     },
   },
+
   {
     name: 'nse_download_indices_bhavcopy',
-    description: 'Download indices bhavcopy report. Use max_items and fields to limit large responses.',
+    description:
+      'Download NSE indices bhavcopy for a specific date.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         date: {
           type: 'string',
-          description: 'Date (YYYY-MM-DD)',
+          description:
+            'Trading date YYYY-MM-DD.',
         },
       }),
+
       required: ['date'],
     },
   },
+
   {
     name: 'nse_download_fno_bhavcopy',
-    description: 'Download F&O bhavcopy report. Use max_items and fields to limit large responses.',
+    description:
+      'Download NSE F&O bhavcopy for a specific trading date. Contains futures and options OHLC, volume, turnover, expiry, strike and open-interest data.',
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({
         date: {
           type: 'string',
-          description: 'Date (YYYY-MM-DD)',
+          description:
+            'Trading date YYYY-MM-DD.',
         },
       }),
+
       required: ['date'],
     },
   },
