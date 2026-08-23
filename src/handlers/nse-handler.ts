@@ -115,7 +115,9 @@ function parseCsv(
     return [];
   }
 
-  const headers = parseCsvLine(lines[0]).map(
+  const headers = parseCsvLine(
+    lines[0]
+  ).map(
     (h) =>
       h
         .trim()
@@ -129,7 +131,8 @@ function parseCsv(
     i < lines.length;
     i++
   ) {
-    const values = parseCsvLine(lines[i]);
+    const values =
+      parseCsvLine(lines[i]);
 
     const row: Record<string, any> = {};
 
@@ -156,7 +159,8 @@ async function readDownloadedCsv(
   }
 
   try {
-    const stat = await fs.stat(filePath);
+    const stat =
+      await fs.stat(filePath);
 
     if (!stat.isFile()) {
       return [];
@@ -211,7 +215,8 @@ function cleanString(
     return null;
   }
 
-  const text = String(value).trim();
+  const text =
+    String(value).trim();
 
   return text === ''
     ? null
@@ -223,14 +228,14 @@ function cleanString(
    ============================================================ */
 
 /*
- * NSE UDiFF uses short instrument codes.
+ * NSE UDiFF / bhavcopy instrument codes
  *
  * STF = Stock Futures
  * IDF = Index Futures
  * STO = Stock Options
  * IDO = Index Options
  *
- * Our public API keeps the familiar:
+ * Public API uses:
  *
  * FUTSTK
  * FUTIDX
@@ -284,7 +289,8 @@ function normalizeDateOnly(
     return null;
   }
 
-  const raw = String(value).trim();
+  const raw =
+    String(value).trim();
 
   /*
    * YYYY-MM-DD
@@ -350,9 +356,14 @@ function normalizeDateOnly(
   /*
    * ISO timestamp / JS-compatible date
    */
-  const parsed = new Date(raw);
+  const parsed =
+    new Date(raw);
 
-  if (!Number.isNaN(parsed.getTime())) {
+  if (
+    !Number.isNaN(
+      parsed.getTime()
+    )
+  ) {
     return parsed
       .toISOString()
       .slice(0, 10);
@@ -443,19 +454,28 @@ function normalizeEquityRow(
     row.DelivPct;
 
   return {
-    symbol: cleanString(symbol),
+    symbol:
+      cleanString(symbol),
 
-    series: cleanString(series),
+    series:
+      cleanString(series),
 
     date:
       normalizeDateOnly(
         tradeDate
       ) ?? requestedDate,
 
-    open: numberOrNull(open),
-    high: numberOrNull(high),
-    low: numberOrNull(low),
-    close: numberOrNull(close),
+    open:
+      numberOrNull(open),
+
+    high:
+      numberOrNull(high),
+
+    low:
+      numberOrNull(low),
+
+    close:
+      numberOrNull(close),
 
     lastPrice:
       numberOrNull(lastPrice),
@@ -476,7 +496,9 @@ function normalizeEquityRow(
       numberOrNull(deliveryQty),
 
     deliveryPercent:
-      numberOrNull(deliveryPercent),
+      numberOrNull(
+        deliveryPercent
+      ),
 
     source:
       'NSE_EQUITY_BHAVCOPY',
@@ -612,7 +634,9 @@ function normalizeFnoRow(
       numberOrNull(value),
 
     openInterest:
-      numberOrNull(openInterest),
+      numberOrNull(
+        openInterest
+      ),
 
     changeInOpenInterest:
       numberOrNull(
@@ -628,6 +652,7 @@ function normalizeFnoRow(
       'NSE_FNO_BHAVCOPY',
   };
 }
+
 /* ============================================================
    F&O BHAVCOPY PARSED DATA
    ============================================================ */
@@ -636,145 +661,265 @@ async function getFnoBhavcopyData(
   nse: NSEClient,
   args: Record<string, any>
 ): Promise<Record<string, any>[]> {
-  const date = parseDate(args.date);
+  if (!args.date) {
+    throw new Error(
+      'date is required for nse_fno_bhavcopy_data'
+    );
+  }
 
-  const filePath = await nse.fnoBhavcopy(date);
+  const date =
+    parseDate(args.date);
 
-  const rows = await readDownloadedCsv(String(filePath));
+  const requestedDate =
+    dateKey(date);
+
+  /*
+   * Download the actual NSE F&O bhavcopy.
+   *
+   * nse-bse-api returns the server-side
+   * downloaded file path.
+   */
+  const filePath =
+    await nse.fnoBhavcopy(date);
+
+  /*
+   * Read the CSV from that path.
+   */
+  const rows =
+    await readDownloadedCsv(
+      String(filePath)
+    );
 
   if (!rows.length) {
     return [];
   }
 
-  const wantedSymbol = args.symbol
-    ? String(args.symbol).trim().toUpperCase()
-    : undefined;
+  /* ----------------------------------------------------------
+     USER FILTERS
+     ---------------------------------------------------------- */
 
-  const wantedInstrument = args.instrument_type
-    ? String(args.instrument_type).trim().toUpperCase()
-    : undefined;
-
-  const wantedOptionType = args.option_type
-    ? String(args.option_type).trim().toUpperCase()
-    : undefined;
-
-  const wantedExpiry = args.expiry_date
-    ? dateKey(parseDate(args.expiry_date))
-    : undefined;
-
-  const wantedStrike =
-    args.strike_price !== undefined &&
-    args.strike_price !== null
-      ? Number(args.strike_price)
+  const wantedSymbol =
+    args.symbol
+      ? String(args.symbol)
+          .trim()
+          .toUpperCase()
       : undefined;
 
-  const stocksOnly =
-    args.stocks_only === undefined
-      ? true
-      : Boolean(args.stocks_only);
+  const wantedInstrument =
+    args.instrument_type
+      ? normalizeFnoInstrument(
+          args.instrument_type
+        )
+      : undefined;
 
-  const result: Record<string, any>[] = [];
+  const wantedOptionType =
+    args.option_type
+      ? String(args.option_type)
+          .trim()
+          .toUpperCase()
+      : undefined;
+
+  const wantedExpiry =
+    args.expiry_date
+      ? normalizeDateOnly(
+          args.expiry_date
+        )
+      : undefined;
+
+  const wantedStrike =
+    args.strike_price !==
+      undefined &&
+    args.strike_price !==
+      null
+      ? Number(
+          args.strike_price
+        )
+      : undefined;
+
+  /*
+   * Default = F&O STOCKS ONLY.
+   *
+   * This is important for our BTST scanner.
+   */
+  const stocksOnly =
+    args.stocks_only ===
+      undefined
+      ? true
+      : Boolean(
+          args.stocks_only
+        );
+
+  const result:
+    Record<string, any>[] =
+    [];
+
+  /* ----------------------------------------------------------
+     ROW FILTERING
+     ---------------------------------------------------------- */
 
   for (const row of rows) {
-    const symbol = String(
-      row.SYMBOL ??
-      row.symbol ??
-      row.TckrSymb ??
-      ''
-    ).trim().toUpperCase();
+
+    /* --------------------------------------------------------
+       SYMBOL
+       -------------------------------------------------------- */
+
+    const symbol =
+      String(
+        row.SYMBOL ??
+        row.symbol ??
+        row.TckrSymb ??
+        ''
+      )
+        .trim()
+        .toUpperCase();
 
     if (!symbol) {
       continue;
     }
 
-    const instrument = String(
-      row.INSTRUMENT ??
-      row.Instrument ??
-      row.FinInstrmTp ??
-      ''
-    ).trim().toUpperCase();
+    /* --------------------------------------------------------
+       INSTRUMENT
+       -------------------------------------------------------- */
 
-    // Default = F&O STOCKS ONLY
+    /*
+     * IMPORTANT:
+     *
+     * We normalize STF -> FUTSTK
+     * and STO -> OPTSTK.
+     *
+     * Without this, UDiFF rows could
+     * be incorrectly filtered out.
+     */
+    const instrument =
+      normalizeFnoInstrument(
+        row.INSTRUMENT ??
+        row.Instrument ??
+        row.FinInstrmTp ??
+        ''
+      );
+
+    if (!instrument) {
+      continue;
+    }
+
+    /*
+     * Default:
+     * FUTSTK + OPTSTK only.
+     */
     if (stocksOnly) {
       if (
-        instrument !== 'FUTSTK' &&
-        instrument !== 'OPTSTK'
+        instrument !==
+          'FUTSTK' &&
+        instrument !==
+          'OPTSTK'
       ) {
         continue;
       }
     }
+
+    /*
+     * Explicit instrument filter.
+     */
+    if (
+      wantedInstrument &&
+      instrument !==
+        wantedInstrument
+    ) {
+      continue;
+    }
+
+    /* --------------------------------------------------------
+       SYMBOL FILTER
+       -------------------------------------------------------- */
 
     if (
       wantedSymbol &&
-      symbol !== wantedSymbol
+      symbol !==
+        wantedSymbol
     ) {
       continue;
     }
 
-    if (
-      wantedInstrument &&
-      instrument !== wantedInstrument
-    ) {
-      continue;
-    }
+    /* --------------------------------------------------------
+       OPTION TYPE
+       -------------------------------------------------------- */
 
-    const optionType = String(
-      row.OPTION_TYP ??
-      row.OPTION_TYPE ??
-      row.OptnTp ??
-      ''
-    ).trim().toUpperCase();
+    const optionType =
+      String(
+        row.OPTION_TYP ??
+        row.OPTION_TYPE ??
+        row.OptnTp ??
+        ''
+      )
+        .trim()
+        .toUpperCase();
 
     if (
       wantedOptionType &&
-      optionType !== wantedOptionType
+      optionType !==
+        wantedOptionType
     ) {
       continue;
     }
 
+    /* --------------------------------------------------------
+       STRIKE
+       -------------------------------------------------------- */
+
     if (
-      wantedStrike !== undefined &&
-      wantedStrike !== null
+      wantedStrike !==
+        undefined &&
+      wantedStrike !==
+        null
     ) {
-      const strike = numberOrNull(
-        row.STRIKE_PR ??
-        row.STRIKE_PRICE ??
-        row.StrkPric
-      );
+      const strike =
+        numberOrNull(
+          row.STRIKE_PR ??
+          row.STRIKE_PRICE ??
+          row.StrkPric
+        );
 
       if (
         strike === null ||
-        strike !== wantedStrike
+        strike !==
+          wantedStrike
       ) {
         continue;
       }
     }
+
+    /* --------------------------------------------------------
+       EXPIRY
+       -------------------------------------------------------- */
 
     if (wantedExpiry) {
       const rawExpiry =
         row.EXPIRY_DT ??
         row.EXPIRY_DATE ??
-        row.XpryDt;
+        row.XpryDt ??
+        row.expiryDate;
 
-      if (rawExpiry) {
-        const parsedExpiry = new Date(
-          String(rawExpiry).trim()
+      const parsedExpiry =
+        normalizeDateOnly(
+          rawExpiry
         );
 
-        if (
-          !Number.isNaN(parsedExpiry.getTime()) &&
-          parsedExpiry.toISOString().slice(0, 10) !==
-            wantedExpiry
-        ) {
-          continue;
-        }
+      if (
+        parsedExpiry !==
+        wantedExpiry
+      ) {
+        continue;
       }
     }
+
+    /* --------------------------------------------------------
+       NORMALIZED RESULT
+       -------------------------------------------------------- */
 
     result.push(
       normalizeFnoRow(
         row,
-        dateKey(date)
+        requestedDate
       )
     );
   }
@@ -793,17 +938,22 @@ async function fetchEquityHistoricalFallback(
   to: Date,
   series = 'EQ'
 ): Promise<Record<string, any>[]> {
-  const result: Record<string, any>[] =
+  const result:
+    Record<string, any>[] =
     [];
 
   const dates =
     dateRange(from, to);
 
   const wantedSymbol =
-    symbol.trim().toUpperCase();
+    symbol
+      .trim()
+      .toUpperCase();
 
   const wantedSeries =
-    series.trim().toUpperCase();
+    series
+      .trim()
+      .toUpperCase();
 
   for (const date of dates) {
     const requestedDate =
@@ -894,9 +1044,12 @@ function expiryMatches(
   }
 
   if (
-    rawExpiry === undefined ||
-    rawExpiry === null ||
-    String(rawExpiry).trim() === ''
+    rawExpiry ===
+      undefined ||
+    rawExpiry ===
+      null ||
+    String(rawExpiry).trim() ===
+      ''
   ) {
     return false;
   }
@@ -926,14 +1079,17 @@ async function fetchFnoHistoricalFallback(
   optionType?: string,
   strikePrice?: number
 ): Promise<Record<string, any>[]> {
-  const result: Record<string, any>[] =
+  const result:
+    Record<string, any>[] =
     [];
 
   const dates =
     dateRange(from, to);
 
   const wantedSymbol =
-    symbol.trim().toUpperCase();
+    symbol
+      .trim()
+      .toUpperCase();
 
   const wantedInstrument =
     instrumentType
@@ -974,6 +1130,7 @@ async function fetchFnoHistoricalFallback(
       }
 
       for (const row of rows) {
+
         /* --------------------------------
            SYMBOL
         -------------------------------- */
@@ -1201,8 +1358,8 @@ export async function handleNseTool(
             args.to_date
           );
 
-        let historical: any[] =
-          [];
+        let historical:
+          any[] = [];
 
         /*
          * PRIMARY API
@@ -1279,8 +1436,8 @@ export async function handleNseTool(
               )
             : undefined;
 
-        let historical: any[] =
-          [];
+        let historical:
+          any[] = [];
 
         /*
          * PRIMARY API
@@ -1341,6 +1498,20 @@ export async function handleNseTool(
 
         result =
           historical;
+
+        break;
+      }
+
+      /* ======================================================
+         F&O BHAVCOPY PARSED DATA
+         ====================================================== */
+
+      case 'nse_fno_bhavcopy_data': {
+        result =
+          await getFnoBhavcopyData(
+            nse,
+            args
+          );
 
         break;
       }
@@ -1414,15 +1585,13 @@ export async function handleNseTool(
 
       case 'nse_calculate_max_pain': {
         const optionChainV3 =
-          await nse.optionChainV3(
-            {
-              symbol:
-                args.symbol,
+          await nse.optionChainV3({
+            symbol:
+              args.symbol,
 
-              expiry:
-                args.expiry,
-            }
-          );
+            expiry:
+              args.expiry,
+          });
 
         result =
           NSEApi.OptionsApi.calculateMaxPainV3(
