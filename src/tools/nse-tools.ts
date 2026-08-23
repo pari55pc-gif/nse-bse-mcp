@@ -155,64 +155,77 @@ export const nseTools: Tool[] = [
   // ============================================================
 
   {
-  name: 'nse_fno_historical',
-  description:
-    'Fetch historical F&O data for backtesting. Supports futures/options filtering by instrument type, expiry, option type and strike price. Use max_items and fields to limit large responses.',
-  inputSchema: {
-    type: 'object',
-    properties: addFilterProperties({
-      symbol: {
-        type: 'string',
-        description: 'Symbol name, e.g. RELIANCE, SBIN, TCS',
-      },
-      from_date: {
-        type: 'string',
-        description: 'Start date (YYYY-MM-DD)',
-      },
-      to_date: {
-        type: 'string',
-        description: 'End date (YYYY-MM-DD)',
-      },
-      instrument_type: {
-        type: 'string',
-        description:
-          'Instrument type: FUTIDX, FUTSTK, OPTIDX, OPTSTK',
-      },
-      expiry_date: {
-        type: 'string',
-        description: 'Expiry date (YYYY-MM-DD)',
-      },
-      option_type: {
-        type: 'string',
-        description: 'Option type filter: CE or PE',
-        enum: ['CE', 'PE'],
-      },
-      strike_price: {
-        type: 'number',
-        description: 'Exact option strike price filter',
-      },
-    }),
-    required: ['symbol', 'from_date', 'to_date'],
-  },
-},
-  // ======================================================
-// F&O BHAVCOPY PARSED DATA
-// ======================================================
+    name: 'nse_fno_historical',
 
-case 'nse_fno_bhavcopy_data':
-  result = await getFnoBhavcopyData(
-    nse,
-    args
-  );
-  break;
+    description:
+      'Fetch historical F&O data for backtesting. Supports futures/options filtering by instrument type, expiry, option type and strike price. Use max_items and fields to limit large responses.',
+
+    inputSchema: {
+      type: 'object',
+
+      properties: addFilterProperties({
+        symbol: {
+          type: 'string',
+          description:
+            'Symbol name, e.g. RELIANCE, SBIN, TCS.',
+        },
+
+        from_date: {
+          type: 'string',
+          description:
+            'Start date (YYYY-MM-DD).',
+        },
+
+        to_date: {
+          type: 'string',
+          description:
+            'End date (YYYY-MM-DD).',
+        },
+
+        instrument_type: {
+          type: 'string',
+          description:
+            'Instrument type: FUTIDX, FUTSTK, OPTIDX, OPTSTK.',
+        },
+
+        expiry_date: {
+          type: 'string',
+          description:
+            'Expiry date (YYYY-MM-DD).',
+        },
+
+        option_type: {
+          type: 'string',
+          description:
+            'Option type filter: CE or PE.',
+          enum: ['CE', 'PE'],
+        },
+
+        strike_price: {
+          type: 'number',
+          description:
+            'Exact option strike price filter.',
+        },
+      }),
+
+      required: [
+        'symbol',
+        'from_date',
+        'to_date',
+      ],
+    },
+  },
+
   // ============================================================
   // VIX
   // ============================================================
 
   {
     name: 'nse_vix_historical',
+
     description:
       'Fetch historical NSE India VIX data. Use max_items and fields to limit large responses.',
+
     inputSchema: {
       type: 'object',
 
@@ -427,8 +440,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_corporate_actions',
+
     description:
       'Get NSE corporate actions including dividends, splits and bonuses.',
+
     inputSchema: {
       type: 'object',
 
@@ -462,8 +477,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_corporate_announcements',
+
     description:
       'Get NSE corporate announcements.',
+
     inputSchema: {
       type: 'object',
 
@@ -491,8 +508,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_board_meetings',
+
     description:
       'Get NSE board meeting information.',
+
     inputSchema: {
       type: 'object',
 
@@ -520,8 +539,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_annual_reports',
+
     description:
       'Get annual reports for a company.',
+
     inputSchema: {
       type: 'object',
 
@@ -545,8 +566,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_circulars',
+
     description:
       'Get NSE circulars.',
+
     inputSchema: {
       type: 'object',
 
@@ -572,8 +595,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_current_ipos',
+
     description:
       'List current/ongoing IPOs.',
+
     inputSchema: {
       type: 'object',
       properties: {},
@@ -582,8 +607,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_upcoming_ipos',
+
     description:
       'List upcoming IPOs.',
+
     inputSchema: {
       type: 'object',
       properties: {},
@@ -592,8 +619,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_past_ipos',
+
     description:
       'List past IPOs.',
+
     inputSchema: {
       type: 'object',
 
@@ -615,8 +644,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_ipo_details',
+
     description:
       'Get detailed IPO information.',
+
     inputSchema: {
       type: 'object',
 
@@ -638,18 +669,23 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_block_deals',
+
     description:
       'Get NSE block-deal data.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({}),
     },
   },
 
   {
     name: 'nse_bulk_deals',
+
     description:
       'Get NSE bulk-deal data.',
+
     inputSchema: {
       type: 'object',
 
@@ -676,8 +712,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_holidays',
+
     description:
       'Get NSE market holidays.',
+
     inputSchema: {
       type: 'object',
 
@@ -701,18 +739,23 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_list_indices',
+
     description:
       'List all NSE indices.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({}),
     },
   },
 
   {
     name: 'nse_list_stocks_by_index',
+
     description:
       'List stocks belonging to an NSE index.',
+
     inputSchema: {
       type: 'object',
 
@@ -728,38 +771,49 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_list_etf',
+
     description:
       'List all NSE ETFs.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({}),
     },
   },
 
   {
     name: 'nse_list_sme',
+
     description:
       'List all NSE SME stocks.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({}),
     },
   },
 
   {
     name: 'nse_list_sgb',
+
     description:
       'List all NSE Sovereign Gold Bonds.',
+
     inputSchema: {
       type: 'object',
+
       properties: addFilterProperties({}),
     },
   },
 
   {
     name: 'nse_equity_meta_info',
+
     description:
       'Get metadata for an NSE equity symbol.',
+
     inputSchema: {
       type: 'object',
 
@@ -778,83 +832,83 @@ case 'nse_fno_bhavcopy_data':
   // ============================================================
   // DOWNLOADS
   // ============================================================
-// ============================================================
-// DOWNLOADS
-// ============================================================
 
-{
-  name: 'nse_fno_bhavcopy_data',
+  {
+    name: 'nse_fno_bhavcopy_data',
 
-  description:
-    'Return parsed NSE F&O bhavcopy rows as JSON. Defaults to F&O STOCKS ONLY (FUTSTK and OPTSTK). Supports filtering by symbol, instrument type, expiry, option type and strike price. Designed for BTST/blast backtesting.',
+    description:
+      'Return parsed NSE F&O bhavcopy rows as JSON instead of only returning a server-side file path. Defaults to F&O STOCKS ONLY (FUTSTK and OPTSTK). Supports filtering by symbol, instrument type, expiry, option type and strike price. Designed for BTST and blast-move backtesting.',
 
-  inputSchema: {
-    type: 'object',
+    inputSchema: {
+      type: 'object',
 
-    properties: addFilterProperties({
+      properties: addFilterProperties({
 
-      date: {
-        type: 'string',
-        description:
-          'Trading date YYYY-MM-DD.'
-      },
+        date: {
+          type: 'string',
+          description:
+            'Trading date YYYY-MM-DD.',
+        },
 
-      stocks_only: {
-        type: 'boolean',
-        description:
-          'Return only F&O stock contracts FUTSTK and OPTSTK. Default true.',
-        default: true
-      },
+        stocks_only: {
+          type: 'boolean',
+          description:
+            'Return only F&O stock contracts FUTSTK and OPTSTK. Default true.',
+          default: true,
+        },
 
-      symbol: {
-        type: 'string',
-        description:
-          'Optional F&O stock symbol, e.g. RELIANCE, SBIN, TCS, COFORGE.'
-      },
+        symbol: {
+          type: 'string',
+          description:
+            'Optional F&O stock symbol, e.g. RELIANCE, SBIN, TCS, COFORGE.',
+        },
 
-      instrument_type: {
-        type: 'string',
-        description:
-          'Optional instrument filter.',
-        enum: [
-          'FUTSTK',
-          'OPTSTK'
-        ]
-      },
+        instrument_type: {
+          type: 'string',
+          description:
+            'Optional instrument filter.',
+          enum: [
+            'FUTSTK',
+            'OPTSTK',
+          ],
+        },
 
-      expiry_date: {
-        type: 'string',
-        description:
-          'Optional expiry date YYYY-MM-DD.'
-      },
+        expiry_date: {
+          type: 'string',
+          description:
+            'Optional expiry date YYYY-MM-DD.',
+        },
 
-      option_type: {
-        type: 'string',
-        description:
-          'Optional option type filter.',
-        enum: [
-          'CE',
-          'PE'
-        ]
-      },
+        option_type: {
+          type: 'string',
+          description:
+            'Optional option type filter.',
+          enum: [
+            'CE',
+            'PE',
+          ],
+        },
 
-      strike_price: {
-        type: 'number',
-        description:
-          'Optional exact option strike price.'
-      }
+        strike_price: {
+          type: 'number',
+          description:
+            'Optional exact option strike price.',
+        },
 
-    }),
+      }),
 
-    required: [
-      'date'
-    ]
-  }
-},
+      required: [
+        'date',
+      ],
+    },
+  },
+
   {
     name: 'nse_download_equity_bhavcopy',
+
     description:
       'Download the NSE daily equity bhavcopy for a specific date.',
+
     inputSchema: {
       type: 'object',
 
@@ -872,8 +926,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_download_delivery_bhavcopy',
+
     description:
       'Download NSE delivery bhavcopy for a specific date.',
+
     inputSchema: {
       type: 'object',
 
@@ -891,8 +947,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_download_indices_bhavcopy',
+
     description:
       'Download NSE indices bhavcopy for a specific date.',
+
     inputSchema: {
       type: 'object',
 
@@ -910,8 +968,10 @@ case 'nse_fno_bhavcopy_data':
 
   {
     name: 'nse_download_fno_bhavcopy',
+
     description:
       'Download NSE F&O bhavcopy for a specific trading date. Contains futures and options OHLC, volume, turnover, expiry, strike and open-interest data.',
+
     inputSchema: {
       type: 'object',
 
