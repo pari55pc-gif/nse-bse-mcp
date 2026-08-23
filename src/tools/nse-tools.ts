@@ -768,7 +768,79 @@ export const nseTools: Tool[] = [
   // ============================================================
   // DOWNLOADS
   // ============================================================
+// ============================================================
+// DOWNLOADS
+// ============================================================
 
+{
+  name: 'nse_fno_bhavcopy_data',
+
+  description:
+    'Return parsed NSE F&O bhavcopy rows as JSON. Defaults to F&O STOCKS ONLY (FUTSTK and OPTSTK). Supports filtering by symbol, instrument type, expiry, option type and strike price. Designed for BTST/blast backtesting.',
+
+  inputSchema: {
+    type: 'object',
+
+    properties: addFilterProperties({
+
+      date: {
+        type: 'string',
+        description:
+          'Trading date YYYY-MM-DD.'
+      },
+
+      stocks_only: {
+        type: 'boolean',
+        description:
+          'Return only F&O stock contracts FUTSTK and OPTSTK. Default true.',
+        default: true
+      },
+
+      symbol: {
+        type: 'string',
+        description:
+          'Optional F&O stock symbol, e.g. RELIANCE, SBIN, TCS, COFORGE.'
+      },
+
+      instrument_type: {
+        type: 'string',
+        description:
+          'Optional instrument filter.',
+        enum: [
+          'FUTSTK',
+          'OPTSTK'
+        ]
+      },
+
+      expiry_date: {
+        type: 'string',
+        description:
+          'Optional expiry date YYYY-MM-DD.'
+      },
+
+      option_type: {
+        type: 'string',
+        description:
+          'Optional option type filter.',
+        enum: [
+          'CE',
+          'PE'
+        ]
+      },
+
+      strike_price: {
+        type: 'number',
+        description:
+          'Optional exact option strike price.'
+      }
+
+    }),
+
+    required: [
+      'date'
+    ]
+  }
+},
   {
     name: 'nse_download_equity_bhavcopy',
     description:
