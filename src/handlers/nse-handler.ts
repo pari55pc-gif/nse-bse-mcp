@@ -1,8 +1,14 @@
 import { NSEClient, NSEApi } from 'nse-bse-api';
-import { formatLimitedResponse, LimitOptions } from '../utils/response-limiter.js';
+import {
+  formatLimitedResponse,
+  LimitOptions,
+} from '../utils/response-limiter.js';
 
 import fs from 'fs/promises';
-import path from 'path';
+
+/* ============================================================
+   BASIC HELPERS
+   ============================================================ */
 
 function parseDate(dateStr: string): Date {
   const d = new Date(dateStr);
@@ -14,7 +20,9 @@ function parseDate(dateStr: string): Date {
   return d;
 }
 
-function extractLimitOptions(args: Record<string, any>): LimitOptions {
+function extractLimitOptions(
+  args: Record<string, any>
+): LimitOptions {
   return {
     maxItems: args.max_items,
     fields: args.fields,
@@ -22,19 +30,20 @@ function extractLimitOptions(args: Record<string, any>): LimitOptions {
   };
 }
 
-/* ============================================================
-   DATE HELPERS
-   ============================================================ */
-
 function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
 function nextDate(date: Date): Date {
-  return new Date(date.getTime() + 24 * 60 * 60 * 1000);
+  return new Date(
+    date.getTime() + 24 * 60 * 60 * 1000
+  );
 }
 
-function dateRange(from: Date, to: Date): Date[] {
+function dateRange(
+  from: Date,
+  to: Date
+): Date[] {
   const dates: Date[] = [];
 
   let current = new Date(from.getTime());
@@ -48,21 +57,15 @@ function dateRange(from: Date, to: Date): Date[] {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /* ============================================================
    CSV HELPERS
    ============================================================ */
 
-/**
- * Simple CSV parser.
- *
- * Handles:
- * - quoted fields
- * - commas inside quoted fields
- * - escaped quotes ("")
- */
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
 
@@ -73,13 +76,19 @@ function parseCsvLine(line: string): string[] {
     const char = line[i];
 
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (
+        inQuotes &&
+        line[i + 1] === '"'
+      ) {
         current += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (char === ',' && !inQuotes) {
+    } else if (
+      char === ',' &&
+      !inQuotes
+    ) {
       result.push(current);
       current = '';
     } else {
@@ -92,29 +101,45 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-function parseCsv(content: string): Record<string, any>[] {
+function parseCsv(
+  content: string
+): Record<string, any>[] {
   const lines = content
     .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
+    .filter(
+      (line) => line.trim().length > 0
+    );
 
   if (lines.length < 2) {
     return [];
   }
 
-  const headers = parseCsvLine(lines[0]).map((h) =>
-    h.trim().replace(/^"|"$/g, '')
+  const headers = parseCsvLine(lines[0]).map(
+    (h) =>
+      h
+        .trim()
+        .replace(/^"|"$/g, '')
   );
 
   const rows: Record<string, any>[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
+  for (
+    let i = 1;
+    i < lines.length;
+    i++
+  ) {
     const values = parseCsvLine(lines[i]);
 
     const row: Record<string, any> = {};
 
-    for (let j = 0; j < headers.length; j++) {
-      row[headers[j]] = values[j] ?? '';
+    for (
+      let j = 0;
+      j < headers.length;
+      j++
+    ) {
+      row[headers[j]] =
+        values[j] ?? '';
     }
 
     rows.push(row);
@@ -123,7 +148,9 @@ function parseCsv(content: string): Record<string, any>[] {
   return rows;
 }
 
-async function readDownloadedCsv(filePath: string): Promise<Record<string, any>[]> {
+async function readDownloadedCsv(
+  filePath: string
+): Promise<Record<string, any>[]> {
   if (!filePath) {
     return [];
   }
@@ -135,7 +162,11 @@ async function readDownloadedCsv(filePath: string): Promise<Record<string, any>[
       return [];
     }
 
-    const content = await fs.readFile(filePath, 'utf8');
+    const content =
+      await fs.readFile(
+        filePath,
+        'utf8'
+      );
 
     return parseCsv(content);
   } catch {
@@ -144,33 +175,190 @@ async function readDownloadedCsv(filePath: string): Promise<Record<string, any>[
 }
 
 /* ============================================================
-   NUMBER / NORMALIZATION HELPERS
+   NORMALIZATION HELPERS
    ============================================================ */
 
-function numberOrNull(value: any): number | null {
+function numberOrNull(
+  value: any
+): number | null {
   if (
     value === undefined ||
     value === null ||
     value === '' ||
     value === '-' ||
-    value === 'NA'
+    value === 'NA' ||
+    value === 'null'
   ) {
     return null;
   }
 
-  const n = Number(String(value).replace(/,/g, ''));
+  const n = Number(
+    String(value).replace(/,/g, '')
+  );
 
-  return Number.isFinite(n) ? n : null;
+  return Number.isFinite(n)
+    ? n
+    : null;
 }
 
-function cleanString(value: any): string | null {
-  if (value === undefined || value === null) {
+function cleanString(
+  value: any
+): string | null {
+  if (
+    value === undefined ||
+    value === null
+  ) {
     return null;
   }
 
   const text = String(value).trim();
 
-  return text === '' ? null : text;
+  return text === ''
+    ? null
+    : text;
+}
+
+/* ============================================================
+   F&O INSTRUMENT NORMALIZATION
+   ============================================================ */
+
+/*
+ * NSE UDiFF uses short instrument codes.
+ *
+ * STF = Stock Futures
+ * IDF = Index Futures
+ * STO = Stock Options
+ * IDO = Index Options
+ *
+ * Our public API keeps the familiar:
+ *
+ * FUTSTK
+ * FUTIDX
+ * OPTSTK
+ * OPTIDX
+ */
+
+function normalizeFnoInstrument(
+  value: any
+): string | null {
+  const v = String(
+    value ?? ''
+  )
+    .trim()
+    .toUpperCase();
+
+  if (!v) {
+    return null;
+  }
+
+  const mapping: Record<
+    string,
+    string
+  > = {
+    STF: 'FUTSTK',
+    IDF: 'FUTIDX',
+    STO: 'OPTSTK',
+    IDO: 'OPTIDX',
+
+    FUTSTK: 'FUTSTK',
+    FUTIDX: 'FUTIDX',
+    OPTSTK: 'OPTSTK',
+    OPTIDX: 'OPTIDX',
+  };
+
+  return mapping[v] ?? v;
+}
+
+/* ============================================================
+   FLEXIBLE DATE NORMALIZATION
+   ============================================================ */
+
+function normalizeDateOnly(
+  value: any
+): string | null {
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ''
+  ) {
+    return null;
+  }
+
+  const raw = String(value).trim();
+
+  /*
+   * YYYY-MM-DD
+   */
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(raw)
+  ) {
+    return raw;
+  }
+
+  /*
+   * DD/MM/YYYY
+   */
+  const slashMatch =
+    raw.match(
+      /^(\d{2})\/(\d{2})\/(\d{4})$/
+    );
+
+  if (slashMatch) {
+    return `${slashMatch[3]}-${slashMatch[2]}-${slashMatch[1]}`;
+  }
+
+  /*
+   * DD-Mon-YYYY
+   */
+  const monthMap: Record<
+    string,
+    string
+  > = {
+    JAN: '01',
+    FEB: '02',
+    MAR: '03',
+    APR: '04',
+    MAY: '05',
+    JUN: '06',
+    JUL: '07',
+    AUG: '08',
+    SEP: '09',
+    OCT: '10',
+    NOV: '11',
+    DEC: '12',
+  };
+
+  const dashMatch =
+    raw.match(
+      /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/
+    );
+
+  if (dashMatch) {
+    const month =
+      monthMap[
+        dashMatch[2].toUpperCase()
+      ];
+
+    if (month) {
+      return `${dashMatch[3]}-${month}-${dashMatch[1].padStart(
+        2,
+        '0'
+      )}`;
+    }
+  }
+
+  /*
+   * ISO timestamp / JS-compatible date
+   */
+  const parsed = new Date(raw);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  return raw;
 }
 
 /* ============================================================
@@ -256,25 +444,42 @@ function normalizeEquityRow(
 
   return {
     symbol: cleanString(symbol),
+
     series: cleanString(series),
-    date: cleanString(tradeDate) ?? requestedDate,
+
+    date:
+      normalizeDateOnly(
+        tradeDate
+      ) ?? requestedDate,
 
     open: numberOrNull(open),
     high: numberOrNull(high),
     low: numberOrNull(low),
     close: numberOrNull(close),
 
-    lastPrice: numberOrNull(lastPrice),
-    prevClose: numberOrNull(prevClose),
+    lastPrice:
+      numberOrNull(lastPrice),
 
-    volume: numberOrNull(volume),
-    turnover: numberOrNull(turnover),
-    trades: numberOrNull(trades),
+    prevClose:
+      numberOrNull(prevClose),
 
-    deliveryQty: numberOrNull(deliveryQty),
-    deliveryPercent: numberOrNull(deliveryPercent),
+    volume:
+      numberOrNull(volume),
 
-    source: 'NSE_EQUITY_BHAVCOPY',
+    turnover:
+      numberOrNull(turnover),
+
+    trades:
+      numberOrNull(trades),
+
+    deliveryQty:
+      numberOrNull(deliveryQty),
+
+    deliveryPercent:
+      numberOrNull(deliveryPercent),
+
+    source:
+      'NSE_EQUITY_BHAVCOPY',
   };
 }
 
@@ -291,10 +496,15 @@ function normalizeFnoRow(
     row.symbol ??
     row.TckrSymb;
 
-  const instrument =
+  const rawInstrument =
     row.INSTRUMENT ??
     row.Instrument ??
     row.FinInstrmTp;
+
+  const instrument =
+    normalizeFnoInstrument(
+      rawInstrument
+    );
 
   const expiry =
     row.EXPIRY_DT ??
@@ -366,28 +576,56 @@ function normalizeFnoRow(
     requestedDate;
 
   return {
-    symbol: cleanString(symbol),
-    instrument: cleanString(instrument),
+    symbol:
+      cleanString(symbol),
 
-    expiryDate: cleanString(expiry),
-    strikePrice: numberOrNull(strike),
-    optionType: cleanString(optionType),
+    instrument,
 
-    open: numberOrNull(open),
-    high: numberOrNull(high),
-    low: numberOrNull(low),
-    close: numberOrNull(close),
-    settlePrice: numberOrNull(settle),
+    expiryDate:
+      normalizeDateOnly(expiry),
 
-    contracts: numberOrNull(contracts),
-    value: numberOrNull(value),
+    strikePrice:
+      numberOrNull(strike),
 
-    openInterest: numberOrNull(openInterest),
-    changeInOpenInterest: numberOrNull(changeInOpenInterest),
+    optionType:
+      cleanString(optionType),
 
-    date: cleanString(timestamp) ?? requestedDate,
+    open:
+      numberOrNull(open),
 
-    source: 'NSE_FNO_BHAVCOPY',
+    high:
+      numberOrNull(high),
+
+    low:
+      numberOrNull(low),
+
+    close:
+      numberOrNull(close),
+
+    settlePrice:
+      numberOrNull(settle),
+
+    contracts:
+      numberOrNull(contracts),
+
+    value:
+      numberOrNull(value),
+
+    openInterest:
+      numberOrNull(openInterest),
+
+    changeInOpenInterest:
+      numberOrNull(
+        changeInOpenInterest
+      ),
+
+    date:
+      normalizeDateOnly(
+        timestamp
+      ) ?? requestedDate,
+
+    source:
+      'NSE_FNO_BHAVCOPY',
   };
 }
 
@@ -402,69 +640,123 @@ async function fetchEquityHistoricalFallback(
   to: Date,
   series = 'EQ'
 ): Promise<Record<string, any>[]> {
-  const result: Record<string, any>[] = [];
+  const result: Record<string, any>[] =
+    [];
 
-  const dates = dateRange(from, to);
+  const dates =
+    dateRange(from, to);
+
+  const wantedSymbol =
+    symbol.trim().toUpperCase();
+
+  const wantedSeries =
+    series.trim().toUpperCase();
 
   for (const date of dates) {
-    const requestedDate = dateKey(date);
+    const requestedDate =
+      dateKey(date);
 
     try {
-      /*
-       * NSE publishes daily equity bhavcopy.
-       * This is much more reliable for backtesting than relying
-       * exclusively on the historical GetQuoteApi.
-       */
-      const filePath = await nse.equityBhavcopy(date);
+      const filePath =
+        await nse.equityBhavcopy(
+          date
+        );
 
-      const rows = await readDownloadedCsv(String(filePath));
+      const rows =
+        await readDownloadedCsv(
+          String(filePath)
+        );
 
       if (!rows.length) {
         continue;
       }
 
       for (const row of rows) {
-        const rowSymbol = String(
-          row.SYMBOL ??
-          row.TckrSymb ??
-          row.symbol ??
-          ''
-        ).trim().toUpperCase();
+        const rowSymbol =
+          String(
+            row.SYMBOL ??
+            row.TckrSymb ??
+            row.symbol ??
+            ''
+          )
+            .trim()
+            .toUpperCase();
 
-        const rowSeries = String(
-          row.SERIES ??
-          row.SctySrs ??
-          row.series ??
-          ''
-        ).trim().toUpperCase();
-
-        if (rowSymbol !== symbol.toUpperCase()) {
+        if (
+          rowSymbol !==
+          wantedSymbol
+        ) {
           continue;
         }
 
-        if (series && rowSeries && rowSeries !== series.toUpperCase()) {
+        const rowSeries =
+          String(
+            row.SERIES ??
+            row.SctySrs ??
+            row.series ??
+            ''
+          )
+            .trim()
+            .toUpperCase();
+
+        if (
+          wantedSeries &&
+          rowSeries &&
+          rowSeries !==
+            wantedSeries
+        ) {
           continue;
         }
 
         result.push(
-          normalizeEquityRow(row, requestedDate)
+          normalizeEquityRow(
+            row,
+            requestedDate
+          )
         );
       }
     } catch {
       /*
-       * Weekend / NSE holiday / unavailable report:
-       * simply skip that date.
+       * Weekend / holiday /
+       * unavailable report.
        */
     }
 
-    /*
-     * NSE can throttle repeated requests.
-     * Keep a small delay between daily report downloads.
-     */
     await sleep(350);
   }
 
   return result;
+}
+
+/* ============================================================
+   F&O EXPIRY MATCHING
+   ============================================================ */
+
+function expiryMatches(
+  rawExpiry: any,
+  wantedExpiry?: string
+): boolean {
+  if (!wantedExpiry) {
+    return true;
+  }
+
+  if (
+    rawExpiry === undefined ||
+    rawExpiry === null ||
+    String(rawExpiry).trim() === ''
+  ) {
+    return false;
+  }
+
+  const actual =
+    normalizeDateOnly(
+      rawExpiry
+    );
+
+  return (
+    actual ===
+    wantedExpiry
+  );
 }
 
 /* ============================================================
@@ -481,125 +773,180 @@ async function fetchFnoHistoricalFallback(
   optionType?: string,
   strikePrice?: number
 ): Promise<Record<string, any>[]> {
-  const result: Record<string, any>[] = [];
+  const result: Record<string, any>[] =
+    [];
 
-  const dates = dateRange(from, to);
+  const dates =
+    dateRange(from, to);
 
-  const wantedSymbol = symbol.toUpperCase();
+  const wantedSymbol =
+    symbol.trim().toUpperCase();
 
-  const wantedInstrument = instrumentType
-    ? instrumentType.toUpperCase()
-    : undefined;
+  const wantedInstrument =
+    instrumentType
+      ? normalizeFnoInstrument(
+          instrumentType
+        )
+      : undefined;
 
-  const wantedOptionType = optionType
-    ? optionType.toUpperCase()
-    : undefined;
+  const wantedOptionType =
+    optionType
+      ? optionType
+          .trim()
+          .toUpperCase()
+      : undefined;
 
-  const wantedExpiry = expiryDate
-    ? expiryDate.toISOString().slice(0, 10)
-    : undefined;
+  const wantedExpiry =
+    expiryDate
+      ? dateKey(expiryDate)
+      : undefined;
 
   for (const date of dates) {
-    const requestedDate = dateKey(date);
+    const requestedDate =
+      dateKey(date);
 
     try {
-      const filePath = await nse.fnoBhavcopy(date);
+      const filePath =
+        await nse.fnoBhavcopy(
+          date
+        );
 
-      const rows = await readDownloadedCsv(String(filePath));
+      const rows =
+        await readDownloadedCsv(
+          String(filePath)
+        );
 
       if (!rows.length) {
         continue;
       }
 
       for (const row of rows) {
-        const rowSymbol = String(
-          row.SYMBOL ??
-          row.symbol ??
-          ''
-        ).trim().toUpperCase();
+        /* --------------------------------
+           SYMBOL
+        -------------------------------- */
 
-        if (rowSymbol !== wantedSymbol) {
+        const rowSymbol =
+          String(
+            row.SYMBOL ??
+            row.symbol ??
+            row.TckrSymb ??
+            ''
+          )
+            .trim()
+            .toUpperCase();
+
+        if (
+          rowSymbol !==
+          wantedSymbol
+        ) {
           continue;
         }
 
-        const rowInstrument = String(
+        /* --------------------------------
+           INSTRUMENT
+        -------------------------------- */
+
+        const rawInstrument =
           row.INSTRUMENT ??
           row.Instrument ??
-          ''
-        ).trim().toUpperCase();
+          row.FinInstrmTp ??
+          '';
+
+        const rowInstrument =
+          normalizeFnoInstrument(
+            rawInstrument
+          );
 
         if (
           wantedInstrument &&
-          rowInstrument !== wantedInstrument
+          rowInstrument !==
+            wantedInstrument
         ) {
           continue;
         }
 
-        const rowOptionType = String(
-          row.OPTION_TYP ??
-          row.OPTION_TYPE ??
-          ''
-        ).trim().toUpperCase();
+        /* --------------------------------
+           OPTION TYPE
+        -------------------------------- */
+
+        const rowOptionType =
+          String(
+            row.OPTION_TYP ??
+            row.OPTION_TYPE ??
+            row.OptnTp ??
+            ''
+          )
+            .trim()
+            .toUpperCase();
 
         if (
           wantedOptionType &&
-          rowOptionType !== wantedOptionType
+          rowOptionType !==
+            wantedOptionType
         ) {
           continue;
         }
 
+        /* --------------------------------
+           STRIKE
+        -------------------------------- */
+
         if (
-          strikePrice !== undefined &&
-          strikePrice !== null
+          strikePrice !==
+            undefined &&
+          strikePrice !==
+            null
         ) {
-          const rowStrike = numberOrNull(
-            row.STRIKE_PR ??
-            row.STRIKE_PRICE
-          );
+          const rowStrike =
+            numberOrNull(
+              row.STRIKE_PR ??
+              row.STRIKE_PRICE ??
+              row.StrkPric
+            );
 
           if (
-            rowStrike === null ||
-            rowStrike !== Number(strikePrice)
+            rowStrike ===
+              null ||
+            rowStrike !==
+              Number(
+                strikePrice
+              )
           ) {
             continue;
           }
         }
 
-        if (wantedExpiry) {
-          const rawExpiry =
+        /* --------------------------------
+           EXPIRY
+        -------------------------------- */
+
+        if (
+          !expiryMatches(
             row.EXPIRY_DT ??
-            row.EXPIRY_DATE ??
-            row.XpryDt;
-
-          if (rawExpiry) {
-            const expiryText = String(rawExpiry).trim();
-
-            /*
-             * Keep comparison flexible because NSE historical
-             * bhavcopies can contain formats such as:
-             * 28-Aug-2026
-             * 2026-08-28
-             * 28/08/2026
-             */
-            const parsedExpiry = new Date(expiryText);
-
-            if (
-              !Number.isNaN(parsedExpiry.getTime()) &&
-              parsedExpiry.toISOString().slice(0, 10) !== wantedExpiry
-            ) {
-              continue;
-            }
-          }
+              row.EXPIRY_DATE ??
+              row.XpryDt ??
+              row.expiryDate,
+            wantedExpiry
+          )
+        ) {
+          continue;
         }
 
+        /* --------------------------------
+           MATCHED ROW
+        -------------------------------- */
+
         result.push(
-          normalizeFnoRow(row, requestedDate)
+          normalizeFnoRow(
+            row,
+            requestedDate
+          )
         );
       }
     } catch {
       /*
-       * Weekend / holiday / unavailable report:
-       * skip silently.
+       * Weekend / holiday /
+       * unavailable report.
        */
     }
 
@@ -622,135 +969,210 @@ export async function handleNseTool(
     let result: any;
 
     switch (name) {
-      // ======================================================
-      // MARKET DATA
-      // ======================================================
+
+      /* ======================================================
+         MARKET DATA
+         ====================================================== */
 
       case 'nse_get_market_status':
-        result = await nse.status();
+        result =
+          await nse.status();
         break;
 
       case 'nse_equity_quote':
-        result = await nse.equityQuote(args.symbol);
+        result =
+          await nse.equityQuote(
+            args.symbol
+          );
         break;
 
       case 'nse_get_quote':
-        result = await nse.quote({
-          symbol: args.symbol,
-          segment: args.segment,
-        });
+        result =
+          await nse.quote({
+            symbol:
+              args.symbol,
+            segment:
+              args.segment,
+          });
         break;
 
       case 'nse_lookup_symbol':
-        result = await nse.lookup(args.query);
+        result =
+          await nse.lookup(
+            args.query
+          );
         break;
 
       case 'nse_get_gainers': {
-        const data = await nse.listEquityStocksByIndex('NIFTY 50');
-        result = nse.gainers(data, args.count || 10);
+        const data =
+          await nse.listEquityStocksByIndex(
+            'NIFTY 50'
+          );
+
+        result =
+          nse.gainers(
+            data,
+            args.count || 10
+          );
+
         break;
       }
 
       case 'nse_get_losers': {
-        const data = await nse.listEquityStocksByIndex('NIFTY 50');
-        result = nse.losers(data, args.count || 10);
+        const data =
+          await nse.listEquityStocksByIndex(
+            'NIFTY 50'
+          );
+
+        result =
+          nse.losers(
+            data,
+            args.count || 10
+          );
+
         break;
       }
 
-      // ======================================================
-      // HISTORICAL EQUITY
-      // ======================================================
+      /* ======================================================
+         HISTORICAL EQUITY
+         ====================================================== */
 
       case 'nse_equity_historical': {
-        const from = parseDate(args.from_date);
-        const to = parseDate(args.to_date);
+        const from =
+          parseDate(
+            args.from_date
+          );
 
-        let historical: any[] = [];
+        const to =
+          parseDate(
+            args.to_date
+          );
+
+        let historical: any[] =
+          [];
 
         /*
-         * PRIMARY:
-         * Existing library historical API.
+         * PRIMARY API
          */
+
         try {
           historical =
-            await nse.fetch_equity_historical_data({
-              symbol: args.symbol,
-              from_date: from,
-              to_date: to,
-              series: args.series || 'EQ',
-            });
+            await nse.fetch_equity_historical_data(
+              {
+                symbol:
+                  args.symbol,
+
+                from_date:
+                  from,
+
+                to_date:
+                  to,
+
+                series:
+                  args.series ||
+                  'EQ',
+              }
+            );
         } catch {
           historical = [];
         }
 
         /*
-         * FALLBACK:
-         * Daily NSE equity bhavcopy.
-         *
-         * This is the important BTST/backtest fix.
+         * FALLBACK BHAVCOPY
          */
-        if (!Array.isArray(historical) || historical.length === 0) {
+
+        if (
+          !Array.isArray(
+            historical
+          ) ||
+          historical.length === 0
+        ) {
           historical =
             await fetchEquityHistoricalFallback(
               nse,
               args.symbol,
               from,
               to,
-              args.series || 'EQ'
+              args.series ||
+                'EQ'
             );
         }
 
-        result = historical;
+        result =
+          historical;
+
         break;
       }
 
-      // ======================================================
-      // HISTORICAL F&O
-      // ======================================================
+      /* ======================================================
+         HISTORICAL F&O
+         ====================================================== */
 
       case 'nse_fno_historical': {
-        const from = parseDate(args.from_date);
-        const to = parseDate(args.to_date);
+        const from =
+          parseDate(
+            args.from_date
+          );
 
-        const expiryDate = args.expiry_date
-          ? parseDate(args.expiry_date)
-          : undefined;
+        const to =
+          parseDate(
+            args.to_date
+          );
 
-        let historical: any[] = [];
+        const expiryDate =
+          args.expiry_date
+            ? parseDate(
+                args.expiry_date
+              )
+            : undefined;
+
+        let historical: any[] =
+          [];
 
         /*
-         * PRIMARY:
-         * Existing historical API.
+         * PRIMARY API
          */
+
         try {
           historical =
-            await nse.fetch_historical_fno_data({
-              symbol: args.symbol,
+            await nse.fetch_historical_fno_data(
+              {
+                symbol:
+                  args.symbol,
 
-              from_date: from,
-              to_date: to,
+                from_date:
+                  from,
 
-              instrument_type:
-                args.instrument_type,
+                to_date:
+                  to,
 
-              expiry_date:
-                expiryDate,
+                instrument_type:
+                  args.instrument_type,
 
-              option_type:
-                args.option_type,
+                expiry_date:
+                  expiryDate,
 
-              strike_price:
-                args.strike_price,
-            });
+                option_type:
+                  args.option_type,
+
+                strike_price:
+                  args.strike_price,
+              }
+            );
         } catch {
           historical = [];
         }
 
         /*
-         * FALLBACK:
-         * Daily NSE F&O bhavcopy.
+         * FALLBACK BHAVCOPY
          */
-        if (!Array.isArray(historical) || historical.length === 0) {
+
+        if (
+          !Array.isArray(
+            historical
+          ) ||
+          historical.length === 0
+        ) {
           historical =
             await fetchFnoHistoricalFallback(
               nse,
@@ -764,63 +1186,90 @@ export async function handleNseTool(
             );
         }
 
-        result = historical;
+        result =
+          historical;
+
         break;
       }
 
-      // ======================================================
-      // VIX
-      // ======================================================
+      /* ======================================================
+         VIX
+         ====================================================== */
 
       case 'nse_vix_historical':
-        result = await nse.fetch_historical_vix_data({
-          from_date: args.from_date
-            ? parseDate(args.from_date)
-            : undefined,
+        result =
+          await nse.fetch_historical_vix_data(
+            {
+              from_date:
+                args.from_date
+                  ? parseDate(
+                      args.from_date
+                    )
+                  : undefined,
 
-          to_date: args.to_date
-            ? parseDate(args.to_date)
-            : undefined,
-        });
+              to_date:
+                args.to_date
+                  ? parseDate(
+                      args.to_date
+                    )
+                  : undefined,
+            }
+          );
         break;
 
-      // ======================================================
-      // OPTIONS & DERIVATIVES
-      // ======================================================
+      /* ======================================================
+         OPTIONS
+         ====================================================== */
 
       case 'nse_get_expiry_dates':
-        result = await nse.getExpiryDatesV3(args.symbol);
+        result =
+          await nse.getExpiryDatesV3(
+            args.symbol
+          );
         break;
 
       case 'nse_option_chain':
-        result = await nse.optionChainV3({
-          symbol: args.symbol,
-          expiry: args.expiry,
-          type: args.type,
-        });
+        result =
+          await nse.optionChainV3({
+            symbol:
+              args.symbol,
+
+            expiry:
+              args.expiry,
+
+            type:
+              args.type,
+          });
         break;
 
       case 'nse_filtered_option_chain':
-        result = await nse.filteredOptionChainV3(
-          args.symbol,
-          args.expiry,
-          args.strike_range
-        );
+        result =
+          await nse.filteredOptionChainV3(
+            args.symbol,
+            args.expiry,
+            args.strike_range
+          );
         break;
 
       case 'nse_compile_option_chain':
-        result = await nse.compileOptionChainV3(
-          args.symbol,
-          args.expiry
-        );
+        result =
+          await nse.compileOptionChainV3(
+            args.symbol,
+            args.expiry
+          );
         break;
 
       case 'nse_calculate_max_pain': {
         const optionChainV3 =
-          await nse.optionChainV3({
-            symbol: args.symbol,
-            expiry: args.expiry,
-          });
+          await nse.optionChainV3(
+            {
+              symbol:
+                args.symbol,
+
+              expiry:
+                args.expiry,
+            }
+          );
 
         result =
           NSEApi.OptionsApi.calculateMaxPainV3(
@@ -832,139 +1281,194 @@ export async function handleNseTool(
       }
 
       case 'nse_fno_lots':
-        result = await nse.fnoLots();
+        result =
+          await nse.fnoLots();
         break;
 
       case 'nse_futures_expiry':
-        result = await nse.getFuturesExpiry(
-          args.index || 'nifty'
-        );
+        result =
+          await nse.getFuturesExpiry(
+            args.index ||
+              'nifty'
+          );
         break;
 
-      // ======================================================
-      // CORPORATE INFORMATION
-      // ======================================================
+      /* ======================================================
+         CORPORATE
+         ====================================================== */
 
       case 'nse_corporate_actions':
-        result = await nse.actions({
-          symbol: args.symbol,
+        result =
+          await nse.actions({
+            symbol:
+              args.symbol,
 
-          from_date: args.from_date
-            ? parseDate(args.from_date)
-            : undefined,
+            from_date:
+              args.from_date
+                ? parseDate(
+                    args.from_date
+                  )
+                : undefined,
 
-          to_date: args.to_date
-            ? parseDate(args.to_date)
-            : undefined,
+            to_date:
+              args.to_date
+                ? parseDate(
+                    args.to_date
+                  )
+                : undefined,
 
-          segment: args.segment,
-        });
+            segment:
+              args.segment,
+          });
         break;
 
       case 'nse_corporate_announcements':
-        result = await nse.announcements({
-          symbol: args.symbol,
+        result =
+          await nse.announcements({
+            symbol:
+              args.symbol,
 
-          from_date: args.from_date
-            ? parseDate(args.from_date)
-            : undefined,
+            from_date:
+              args.from_date
+                ? parseDate(
+                    args.from_date
+                  )
+                : undefined,
 
-          to_date: args.to_date
-            ? parseDate(args.to_date)
-            : undefined,
-        });
+            to_date:
+              args.to_date
+                ? parseDate(
+                    args.to_date
+                  )
+                : undefined,
+          });
         break;
 
       case 'nse_board_meetings':
-        result = await nse.boardMeetings({
-          symbol: args.symbol,
+        result =
+          await nse.boardMeetings({
+            symbol:
+              args.symbol,
 
-          from_date: args.from_date
-            ? parseDate(args.from_date)
-            : undefined,
+            from_date:
+              args.from_date
+                ? parseDate(
+                    args.from_date
+                  )
+                : undefined,
 
-          to_date: args.to_date
-            ? parseDate(args.to_date)
-            : undefined,
-        });
+            to_date:
+              args.to_date
+                ? parseDate(
+                    args.to_date
+                  )
+                : undefined,
+          });
         break;
 
       case 'nse_annual_reports':
-        result = await nse.annual_reports(
-          args.symbol,
-          args.segment || 'equities'
-        );
+        result =
+          await nse.annual_reports(
+            args.symbol,
+            args.segment ||
+              'equities'
+          );
         break;
 
       case 'nse_circulars':
-        result = await nse.circulars({
-          from_date: args.from_date
-            ? parseDate(args.from_date)
-            : undefined,
+        result =
+          await nse.circulars({
+            from_date:
+              args.from_date
+                ? parseDate(
+                    args.from_date
+                  )
+                : undefined,
 
-          to_date: args.to_date
-            ? parseDate(args.to_date)
-            : undefined,
-        });
+            to_date:
+              args.to_date
+                ? parseDate(
+                    args.to_date
+                  )
+                : undefined,
+          });
         break;
 
-      // ======================================================
-      // IPO
-      // ======================================================
+      /* ======================================================
+         IPO
+         ====================================================== */
 
       case 'nse_current_ipos':
-        result = await nse.listCurrentIPO();
+        result =
+          await nse.listCurrentIPO();
         break;
 
       case 'nse_upcoming_ipos':
-        result = await nse.listUpcomingIPO();
+        result =
+          await nse.listUpcomingIPO();
         break;
 
       case 'nse_past_ipos':
-        result = await nse.listPastIPO(
-          args.from_date
-            ? parseDate(args.from_date)
-            : undefined,
+        result =
+          await nse.listPastIPO(
+            args.from_date
+              ? parseDate(
+                  args.from_date
+                )
+              : undefined,
 
-          args.to_date
-            ? parseDate(args.to_date)
-            : undefined
-        );
+            args.to_date
+              ? parseDate(
+                  args.to_date
+                )
+              : undefined
+          );
         break;
 
       case 'nse_ipo_details':
-        result = await nse.getIpoDetails({
-          symbol: args.symbol,
-        });
+        result =
+          await nse.getIpoDetails({
+            symbol:
+              args.symbol,
+          });
         break;
 
-      // ======================================================
-      // MARKET ACTIVITY
-      // ======================================================
+      /* ======================================================
+         MARKET ACTIVITY
+         ====================================================== */
 
       case 'nse_block_deals':
-        result = await nse.blockDeals();
+        result =
+          await nse.blockDeals();
         break;
 
       case 'nse_bulk_deals':
-        result = await nse.bulkdeals(
-          parseDate(args.from_date),
-          parseDate(args.to_date)
-        );
+        result =
+          await nse.bulkdeals(
+            parseDate(
+              args.from_date
+            ),
+            parseDate(
+              args.to_date
+            )
+          );
         break;
 
       case 'nse_holidays':
-        result = await nse.holidays(
-          args.type || 'trading'
-        );
+        result =
+          await nse.holidays(
+            args.type ||
+              'trading'
+          );
         break;
 
-      // ======================================================
-      // LISTS & METADATA
-      // ======================================================
+      /* ======================================================
+         LISTS
+         ====================================================== */
 
       case 'nse_list_indices':
-        result = await nse.listIndices();
+        result =
+          await nse.listIndices();
         break;
 
       case 'nse_list_stocks_by_index':
@@ -975,57 +1479,70 @@ export async function handleNseTool(
         break;
 
       case 'nse_list_etf':
-        result = await nse.listEtf();
+        result =
+          await nse.listEtf();
         break;
 
       case 'nse_list_sme':
-        result = await nse.listSme();
+        result =
+          await nse.listSme();
         break;
 
       case 'nse_list_sgb':
-        result = await nse.listSgb();
+        result =
+          await nse.listSgb();
         break;
 
       case 'nse_equity_meta_info':
         result =
-          await nse.equityMetaInfo(args.symbol);
+          await nse.equityMetaInfo(
+            args.symbol
+          );
         break;
 
-      // ======================================================
-      // DOWNLOADS
-      // ======================================================
+      /* ======================================================
+         DOWNLOADS
+         ====================================================== */
 
       case 'nse_download_equity_bhavcopy':
         result =
           await nse.equityBhavcopy(
-            parseDate(args.date)
+            parseDate(
+              args.date
+            )
           );
         break;
 
       case 'nse_download_delivery_bhavcopy':
         result =
           await nse.deliveryBhavcopy(
-            parseDate(args.date)
+            parseDate(
+              args.date
+            )
           );
         break;
 
       case 'nse_download_indices_bhavcopy':
         result =
           await nse.indicesBhavcopy(
-            parseDate(args.date)
+            parseDate(
+              args.date
+            )
           );
         break;
 
       case 'nse_download_fno_bhavcopy':
         result =
           await nse.fnoBhavcopy(
-            parseDate(args.date)
+            parseDate(
+              args.date
+            )
           );
         break;
 
-      // ======================================================
-      // UNKNOWN
-      // ======================================================
+      /* ======================================================
+         UNKNOWN
+         ====================================================== */
 
       default:
         throw new Error(
@@ -1033,12 +1550,14 @@ export async function handleNseTool(
         );
     }
 
-    // ========================================================
-    // RESPONSE LIMITING
-    // ========================================================
+    /* ========================================================
+       RESPONSE LIMITING
+       ======================================================== */
 
     const limitOptions =
-      extractLimitOptions(args);
+      extractLimitOptions(
+        args
+      );
 
     return formatLimitedResponse(
       result,
@@ -1047,7 +1566,10 @@ export async function handleNseTool(
 
   } catch (error: any) {
     throw new Error(
-      `NSE API Error: ${error?.message || String(error)}`
+      `NSE API Error: ${
+        error?.message ||
+        String(error)
+      }`
     );
   }
 }
