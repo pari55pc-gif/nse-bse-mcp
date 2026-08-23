@@ -227,22 +227,6 @@ function cleanString(
    F&O INSTRUMENT NORMALIZATION
    ============================================================ */
 
-/*
- * NSE UDiFF / bhavcopy instrument codes
- *
- * STF = Stock Futures
- * IDF = Index Futures
- * STO = Stock Options
- * IDO = Index Options
- *
- * Public API uses:
- *
- * FUTSTK
- * FUTIDX
- * OPTSTK
- * OPTIDX
- */
-
 function normalizeFnoInstrument(
   value: any
 ): string | null {
@@ -292,18 +276,12 @@ function normalizeDateOnly(
   const raw =
     String(value).trim();
 
-  /*
-   * YYYY-MM-DD
-   */
   if (
     /^\d{4}-\d{2}-\d{2}$/.test(raw)
   ) {
     return raw;
   }
 
-  /*
-   * DD/MM/YYYY
-   */
   const slashMatch =
     raw.match(
       /^(\d{2})\/(\d{2})\/(\d{4})$/
@@ -313,9 +291,6 @@ function normalizeDateOnly(
     return `${slashMatch[3]}-${slashMatch[2]}-${slashMatch[1]}`;
   }
 
-  /*
-   * DD-Mon-YYYY
-   */
   const monthMap: Record<
     string,
     string
@@ -353,9 +328,6 @@ function normalizeDateOnly(
     }
   }
 
-  /*
-   * ISO timestamp / JS-compatible date
-   */
   const parsed =
     new Date(raw);
 
@@ -673,18 +645,9 @@ async function getFnoBhavcopyData(
   const requestedDate =
     dateKey(date);
 
-  /*
-   * Download the actual NSE F&O bhavcopy.
-   *
-   * nse-bse-api returns the server-side
-   * downloaded file path.
-   */
   const filePath =
     await nse.fnoBhavcopy(date);
 
-  /*
-   * Read the CSV from that path.
-   */
   const rows =
     await readDownloadedCsv(
       String(filePath)
@@ -693,10 +656,6 @@ async function getFnoBhavcopyData(
   if (!rows.length) {
     return [];
   }
-
-  /* ----------------------------------------------------------
-     USER FILTERS
-     ---------------------------------------------------------- */
 
   const wantedSymbol =
     args.symbol
@@ -736,11 +695,6 @@ async function getFnoBhavcopyData(
         )
       : undefined;
 
-  /*
-   * Default = F&O STOCKS ONLY.
-   *
-   * This is important for our BTST scanner.
-   */
   const stocksOnly =
     args.stocks_only ===
       undefined
@@ -753,16 +707,7 @@ async function getFnoBhavcopyData(
     Record<string, any>[] =
     [];
 
-  /* ----------------------------------------------------------
-     ROW FILTERING
-     ---------------------------------------------------------- */
-
   for (const row of rows) {
-
-    /* --------------------------------------------------------
-       SYMBOL
-       -------------------------------------------------------- */
-
     const symbol =
       String(
         row.SYMBOL ??
@@ -777,19 +722,6 @@ async function getFnoBhavcopyData(
       continue;
     }
 
-    /* --------------------------------------------------------
-       INSTRUMENT
-       -------------------------------------------------------- */
-
-    /*
-     * IMPORTANT:
-     *
-     * We normalize STF -> FUTSTK
-     * and STO -> OPTSTK.
-     *
-     * Without this, UDiFF rows could
-     * be incorrectly filtered out.
-     */
     const instrument =
       normalizeFnoInstrument(
         row.INSTRUMENT ??
@@ -802,10 +734,6 @@ async function getFnoBhavcopyData(
       continue;
     }
 
-    /*
-     * Default:
-     * FUTSTK + OPTSTK only.
-     */
     if (stocksOnly) {
       if (
         instrument !==
@@ -817,9 +745,6 @@ async function getFnoBhavcopyData(
       }
     }
 
-    /*
-     * Explicit instrument filter.
-     */
     if (
       wantedInstrument &&
       instrument !==
@@ -828,10 +753,6 @@ async function getFnoBhavcopyData(
       continue;
     }
 
-    /* --------------------------------------------------------
-       SYMBOL FILTER
-       -------------------------------------------------------- */
-
     if (
       wantedSymbol &&
       symbol !==
@@ -839,10 +760,6 @@ async function getFnoBhavcopyData(
     ) {
       continue;
     }
-
-    /* --------------------------------------------------------
-       OPTION TYPE
-       -------------------------------------------------------- */
 
     const optionType =
       String(
@@ -861,10 +778,6 @@ async function getFnoBhavcopyData(
     ) {
       continue;
     }
-
-    /* --------------------------------------------------------
-       STRIKE
-       -------------------------------------------------------- */
 
     if (
       wantedStrike !==
@@ -888,10 +801,6 @@ async function getFnoBhavcopyData(
       }
     }
 
-    /* --------------------------------------------------------
-       EXPIRY
-       -------------------------------------------------------- */
-
     if (wantedExpiry) {
       const rawExpiry =
         row.EXPIRY_DT ??
@@ -911,10 +820,6 @@ async function getFnoBhavcopyData(
         continue;
       }
     }
-
-    /* --------------------------------------------------------
-       NORMALIZED RESULT
-       -------------------------------------------------------- */
 
     result.push(
       normalizeFnoRow(
@@ -1019,10 +924,7 @@ async function fetchEquityHistoricalFallback(
         );
       }
     } catch {
-      /*
-       * Weekend / holiday /
-       * unavailable report.
-       */
+      // Weekend / holiday / unavailable report.
     }
 
     await sleep(350);
@@ -1130,11 +1032,6 @@ async function fetchFnoHistoricalFallback(
       }
 
       for (const row of rows) {
-
-        /* --------------------------------
-           SYMBOL
-        -------------------------------- */
-
         const rowSymbol =
           String(
             row.SYMBOL ??
@@ -1151,10 +1048,6 @@ async function fetchFnoHistoricalFallback(
         ) {
           continue;
         }
-
-        /* --------------------------------
-           INSTRUMENT
-        -------------------------------- */
 
         const rawInstrument =
           row.INSTRUMENT ??
@@ -1175,10 +1068,6 @@ async function fetchFnoHistoricalFallback(
           continue;
         }
 
-        /* --------------------------------
-           OPTION TYPE
-        -------------------------------- */
-
         const rowOptionType =
           String(
             row.OPTION_TYP ??
@@ -1196,10 +1085,6 @@ async function fetchFnoHistoricalFallback(
         ) {
           continue;
         }
-
-        /* --------------------------------
-           STRIKE
-        -------------------------------- */
 
         if (
           strikePrice !==
@@ -1226,10 +1111,6 @@ async function fetchFnoHistoricalFallback(
           }
         }
 
-        /* --------------------------------
-           EXPIRY
-        -------------------------------- */
-
         if (
           !expiryMatches(
             row.EXPIRY_DT ??
@@ -1242,10 +1123,6 @@ async function fetchFnoHistoricalFallback(
           continue;
         }
 
-        /* --------------------------------
-           MATCHED ROW
-        -------------------------------- */
-
         result.push(
           normalizeFnoRow(
             row,
@@ -1254,10 +1131,7 @@ async function fetchFnoHistoricalFallback(
         );
       }
     } catch {
-      /*
-       * Weekend / holiday /
-       * unavailable report.
-       */
+      // Weekend / holiday / unavailable report.
     }
 
     await sleep(350);
@@ -1279,10 +1153,6 @@ export async function handleNseTool(
     let result: any;
 
     switch (name) {
-
-      /* ======================================================
-         MARKET DATA
-         ====================================================== */
 
       case 'nse_get_market_status':
         result =
@@ -1343,10 +1213,6 @@ export async function handleNseTool(
         break;
       }
 
-      /* ======================================================
-         HISTORICAL EQUITY
-         ====================================================== */
-
       case 'nse_equity_historical': {
         const from =
           parseDate(
@@ -1360,10 +1226,6 @@ export async function handleNseTool(
 
         let historical:
           any[] = [];
-
-        /*
-         * PRIMARY API
-         */
 
         try {
           historical =
@@ -1386,10 +1248,6 @@ export async function handleNseTool(
         } catch {
           historical = [];
         }
-
-        /*
-         * FALLBACK BHAVCOPY
-         */
 
         if (
           !Array.isArray(
@@ -1414,10 +1272,6 @@ export async function handleNseTool(
         break;
       }
 
-      /* ======================================================
-         HISTORICAL F&O
-         ====================================================== */
-
       case 'nse_fno_historical': {
         const from =
           parseDate(
@@ -1438,10 +1292,6 @@ export async function handleNseTool(
 
         let historical:
           any[] = [];
-
-        /*
-         * PRIMARY API
-         */
 
         try {
           historical =
@@ -1473,10 +1323,6 @@ export async function handleNseTool(
           historical = [];
         }
 
-        /*
-         * FALLBACK BHAVCOPY
-         */
-
         if (
           !Array.isArray(
             historical
@@ -1502,10 +1348,6 @@ export async function handleNseTool(
         break;
       }
 
-      /* ======================================================
-         F&O BHAVCOPY PARSED DATA
-         ====================================================== */
-
       case 'nse_fno_bhavcopy_data': {
         result =
           await getFnoBhavcopyData(
@@ -1515,10 +1357,6 @@ export async function handleNseTool(
 
         break;
       }
-
-      /* ======================================================
-         VIX
-         ====================================================== */
 
       case 'nse_vix_historical':
         result =
@@ -1540,10 +1378,6 @@ export async function handleNseTool(
             }
           );
         break;
-
-      /* ======================================================
-         OPTIONS
-         ====================================================== */
 
       case 'nse_get_expiry_dates':
         result =
@@ -1614,10 +1448,6 @@ export async function handleNseTool(
               'nifty'
           );
         break;
-
-      /* ======================================================
-         CORPORATE
-         ====================================================== */
 
       case 'nse_corporate_actions':
         result =
@@ -1716,10 +1546,6 @@ export async function handleNseTool(
           });
         break;
 
-      /* ======================================================
-         IPO
-         ====================================================== */
-
       case 'nse_current_ipos':
         result =
           await nse.listCurrentIPO();
@@ -1755,10 +1581,6 @@ export async function handleNseTool(
           });
         break;
 
-      /* ======================================================
-         MARKET ACTIVITY
-         ====================================================== */
-
       case 'nse_block_deals':
         result =
           await nse.blockDeals();
@@ -1783,10 +1605,6 @@ export async function handleNseTool(
               'trading'
           );
         break;
-
-      /* ======================================================
-         LISTS
-         ====================================================== */
 
       case 'nse_list_indices':
         result =
@@ -1821,10 +1639,6 @@ export async function handleNseTool(
             args.symbol
           );
         break;
-
-      /* ======================================================
-         DOWNLOADS
-         ====================================================== */
 
       case 'nse_download_equity_bhavcopy':
         result =
@@ -1862,19 +1676,11 @@ export async function handleNseTool(
           );
         break;
 
-      /* ======================================================
-         UNKNOWN
-         ====================================================== */
-
       default:
         throw new Error(
           `Unknown NSE tool: ${name}`
         );
     }
-
-    /* ========================================================
-       RESPONSE LIMITING
-       ======================================================== */
 
     const limitOptions =
       extractLimitOptions(
